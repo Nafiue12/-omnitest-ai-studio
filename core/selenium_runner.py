@@ -98,23 +98,30 @@ class SeleniumTestEngine:
             self.driver = webdriver.Chrome(service=service, options=options)
             self.driver.implicitly_wait(4)
         except Exception as e:
-            logger.warning(f"Chrome driver setup failed: {e}. Falling back to Edge driver...")
-            from selenium.webdriver.edge.options import Options as EdgeOptions
-            from selenium.webdriver.edge.service import Service as EdgeService
-            from webdriver_manager.microsoft import EdgeChromiumDriverManager
+            logger.warning(f"Chrome driver setup failed: {e}")
+            import sys
+            if sys.platform == "win32":
+                try:
+                    from selenium.webdriver.edge.options import Options as EdgeOptions
+                    from selenium.webdriver.edge.service import Service as EdgeService
+                    from webdriver_manager.microsoft import EdgeChromiumDriverManager
 
-            edge_options = EdgeOptions()
-            if self.headless:
-                edge_options.add_argument("--headless=new")
-            edge_options.add_argument("--no-sandbox")
-            edge_options.add_argument("--disable-dev-shm-usage")
-            edge_options.add_argument(f"--window-size={width},{height}")
-            if ua:
-                edge_options.add_argument(f"--user-agent={ua}")
+                    edge_options = EdgeOptions()
+                    if self.headless:
+                        edge_options.add_argument("--headless=new")
+                    edge_options.add_argument("--no-sandbox")
+                    edge_options.add_argument("--disable-dev-shm-usage")
+                    edge_options.add_argument(f"--window-size={width},{height}")
+                    if ua:
+                        edge_options.add_argument(f"--user-agent={ua}")
 
-            service = EdgeService(EdgeChromiumDriverManager().install())
-            self.driver = webdriver.Edge(service=service, options=edge_options)
-            self.driver.implicitly_wait(4)
+                    service = EdgeService(EdgeChromiumDriverManager().install())
+                    self.driver = webdriver.Edge(service=service, options=edge_options)
+                    self.driver.implicitly_wait(4)
+                except Exception as edge_err:
+                    raise RuntimeError(f"Selenium browser startup failed: {edge_err}") from e
+            else:
+                raise RuntimeError(f"Selenium Chrome startup failed on Linux: {e}") from e
 
     def _heal_element(self, primary_by: By, primary_value: str, text_hint: str = "", tag_hint: str = ""):
         try:
