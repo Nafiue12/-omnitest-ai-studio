@@ -421,23 +421,38 @@ class PlaywrightTestEngine:
 
                             with allure.step(f"Login Attempt #{cred_idx+1} for '{u_val}'"):
                                 try:
+                                    try:
+                                        page.keyboard.press("Escape")
+                                        page.wait_for_timeout(200)
+                                    except Exception:
+                                        pass
+
                                     if user_loc.count() > 0 and user_loc.is_visible():
                                         user_loc.scroll_into_view_if_needed()
-                                        user_loc.click()
+                                        try:
+                                            user_loc.click(timeout=3000)
+                                        except Exception:
+                                            user_loc.click(force=True)
                                         user_loc.fill("")
-                                        user_loc.press_sequentially(u_val, delay=30)
-                                        page.wait_for_timeout(200)
+                                        user_loc.press_sequentially(u_val, delay=20)
+                                        page.wait_for_timeout(100)
 
                                     if pass_loc.count() > 0 and pass_loc.is_visible():
                                         pass_loc.scroll_into_view_if_needed()
-                                        pass_loc.click()
+                                        try:
+                                            pass_loc.click(timeout=3000)
+                                        except Exception:
+                                            pass_loc.click(force=True)
                                         pass_loc.fill("")
-                                        pass_loc.press_sequentially(p_val, delay=30)
-                                        page.wait_for_timeout(200)
+                                        pass_loc.press_sequentially(p_val, delay=20)
+                                        page.wait_for_timeout(100)
 
                                     if submit_loc.count() > 0 and submit_loc.is_visible():
                                         submit_loc.scroll_into_view_if_needed()
-                                        submit_loc.click()
+                                        try:
+                                            submit_loc.click(timeout=3000)
+                                        except Exception:
+                                            submit_loc.click(force=True)
                                         page.wait_for_timeout(1000)
 
                                     results["passed"] += 1
