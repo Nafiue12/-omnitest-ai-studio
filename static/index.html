@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Autonomous Web Testing Agent Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css?v=3.0.2">
+</head>
+<body>
+  <div class="container">
+    <header style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1.25rem;">
+      <div>
+        <div class="logo-badge">⚡ AUTONOMOUS WEB TESTING PLATFORM</div>
+        <h1>Performance Vitals, Device Emulation & WCAG Audits</h1>
+        <p>Enterprise AI testing runner with multi-viewport emulation, Web Vitals, accessibility audits, and webhook alerts</p>
+      </div>
+      <div style="display: flex; gap: 0.75rem; align-items: center;">
+        <span id="wsStatusBadge" class="badge badge-purple" style="font-size: 0.8rem; padding: 0.4rem 0.75rem;">📡 WebSocket: Disconnected</span>
+        <button id="themeToggleBtn" class="btn-secondary" style="padding: 0.55rem 1.1rem; border-color: rgba(255, 255, 255, 0.2); font-weight: 600; display: inline-flex; align-items: center; gap: 0.5rem; cursor: pointer; transition: all 0.3s ease; font-size: 0.9rem;">
+          <span id="themeIcon">🌙</span> <span id="themeText">Dark Mode</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- 🤖 OmniTest Neural AI Studio -->
+    <div class="glass-card" style="border: 1px solid rgba(139, 92, 246, 0.4); background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(139, 92, 246, 0.1)); position: relative; overflow: hidden;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+        <div style="display: flex; align-items: center; gap: 0.6rem;">
+          <span style="font-size: 1.4rem;">🤖</span>
+          <h3 style="font-size: 1.15rem; font-weight: 700; background: linear-gradient(135deg, #a78bfa, #38bdf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">OmniTest Neural AI Studio</h3>
+        </div>
+        <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+          <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
+            <label style="font-size: 0.75rem; color: #a78bfa; font-weight: 600;">🧠 AI Model:</label>
+            <input type="text" id="aiModelInput" list="modelListOptions" class="url-input" style="padding: 0.3rem 0.75rem; font-size: 0.8rem; width: 290px; background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(139, 92, 246, 0.5); color: #e2e8f0; border-radius: 0.4rem;" placeholder="Pick preset or type custom model ID..." value="Qwen/Qwen2.5-Coder-32B-Instruct">
+            <datalist id="modelListOptions">
+              <option value="Qwen/Qwen2.5-Coder-32B-Instruct">Qwen 2.5 Coder (32B)</option>
+              <option value="deepseek-ai/DeepSeek-R1">DeepSeek R1 (Reasoning)</option>
+              <option value="meta-llama/Llama-3.3-70B-Instruct">Llama 3.3 Instruct (70B)</option>
+              <option value="Qwen/Qwen2.5-72B-Instruct">Qwen 2.5 Instruct (72B)</option>
+              <option value="meta-llama/Llama-3.1-8B-Instruct">Llama 3.1 Instruct (8B)</option>
+              <option value="Qwen/Qwen2.5-Coder-7B-Instruct">Qwen 2.5 Coder (7B)</option>
+            </datalist>
+          </div>
+          <button type="button" id="toggleHfTokenBtn" onclick="toggleTokenInputRow(event)" class="btn-secondary" style="padding: 0.3rem 0.7rem; font-size: 0.75rem; cursor: pointer;">🔑 API Token</button>
+        </div>
+      </div>
+
+      <!-- Optional API Token Input Row -->
+      <div id="hfTokenRow" style="display: none; margin-bottom: 0.85rem; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(139, 92, 246, 0.3); padding: 0.65rem 0.85rem; border-radius: 0.5rem;">
+        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+          <span style="font-size: 0.85rem; color: #38bdf8; font-weight: 600; white-space: nowrap;">🔑 Provider API Token:</span>
+          <input type="password" id="hfTokenInput" class="url-input" style="font-size: 0.85rem; padding: 0.45rem 0.75rem; flex: 1;" placeholder="Optional HuggingFace / Provider API Token (e.g. hf_xxxxxxxx)">
+        </div>
+      </div>
+
+      <div style="position: relative; margin-bottom: 0.85rem;">
+        <textarea id="aiPromptInput" class="url-input" style="height: 75px; resize: vertical; padding-right: 140px; font-family: inherit; font-size: 0.95rem;" placeholder="Type natural language instructions e.g. 'Test https://example.com buttons and links using Playwright and check performance'"></textarea>
+        <button id="runAiPromptBtn" class="btn-primary" style="position: absolute; right: 8px; bottom: 12px; padding: 0.65rem 1.25rem; font-size: 0.9rem; background: linear-gradient(135deg, #8b5cf6, #06b6d4);">
+          <span id="aiBtnSpinner" class="loader hidden"></span>
+          <span id="aiBtnText">✨ AI Auto Test</span>
+        </button>
+      </div>
+
+      <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+        <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">Presets:</span>
+        <button class="ai-preset-btn btn-secondary" style="padding: 0.25rem 0.65rem; font-size: 0.75rem;" data-prompt="Test https://example.com and check all links and buttons using Both engines">⚡ Full Auto Test</button>
+        <button class="ai-preset-btn btn-secondary" style="padding: 0.25rem 0.65rem; font-size: 0.75rem;" data-prompt="Find all broken links on https://news.ycombinator.com using Playwright">🔗 Broken Links Check</button>
+        <button class="ai-preset-btn btn-secondary" style="padding: 0.25rem 0.65rem; font-size: 0.75rem;" data-prompt="Test form inputs and buttons on https://saucedemo.com using Selenium">🔘 Buttons & Forms Test</button>
+        <button class="ai-preset-btn btn-secondary" style="padding: 0.25rem 0.65rem; font-size: 0.75rem;" data-prompt="Audit accessibility WCAG compliance and page speed metrics on https://example.com">♿ Accessibility & Vitals</button>
+      </div>
+
+      <!-- AI Plan Output Box -->
+      <div id="aiPlanBox" class="hidden" style="margin-top: 1rem; padding: 0.85rem; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 0.6rem; font-size: 0.85rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+          <span style="color: #a78bfa; font-weight: 700;">🧠 AI Execution Plan:</span>
+          <span id="aiModelBadge" class="badge badge-purple">HF Model</span>
+        </div>
+        <div id="aiPlanText" style="color: var(--text-main); font-family: monospace;"></div>
+      </div>
+    </div>
+
+    <div class="glass-card">
+      <div class="input-group">
+        <input type="url" id="targetUrl" class="url-input" placeholder="https://example.com">
+        <button id="runAgentBtn" class="btn-primary">
+          <span id="btnSpinner" class="loader hidden"></span>
+          <span id="btnText">🚀 Start Crawl & Test</span>
+        </button>
+      </div>
+
+      <div class="controls-row" style="margin-bottom: 1.25rem;">
+        <div class="engine-selector">
+          <button class="engine-btn" data-engine="selenium">Selenium</button>
+          <button class="engine-btn" data-engine="playwright">Playwright</button>
+          <button class="engine-btn active" data-engine="both">Both Engines</button>
+        </div>
+
+        <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+          <label style="font-size: 0.875rem; color: var(--text-muted); font-weight: 600;">📱 Viewport:</label>
+          <select id="deviceViewportSelect" class="url-input" style="padding: 0.5rem 0.85rem; width: auto; font-size: 0.875rem;">
+            <option value="desktop" selected>💻 Desktop (1920x1080)</option>
+            <option value="mobile_iphone">📱 iPhone 14 (390x844)</option>
+            <option value="mobile_pixel">📱 Google Pixel 7 (412x915)</option>
+            <option value="tablet_ipad">📱 iPad Air (820x1180)</option>
+          </select>
+        </div>
+
+        <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+          <button id="crawlOnlyBtn" class="btn-secondary">🔍 Fetch Elements Only</button>
+          <button id="exportScriptBtn" class="btn-secondary" style="border-color: rgba(59, 130, 246, 0.4); color: #60a5fa;">🐍 Export Pytest Script</button>
+          <button id="getAllureReportBtn" class="btn-secondary" style="border-color: rgba(192, 132, 252, 0.4); color: #c084fc;">📊 Allure Report</button>
+          <button id="getPlaywrightReportBtn" class="btn-secondary" style="border-color: rgba(6, 182, 212, 0.4); color: var(--accent-cyan);">🎭 Playwright Report</button>
+        </div>
+      </div>
+
+      <!-- Webhook Alert Configuration Input -->
+      <div style="margin-bottom: 1.25rem; background: rgba(15, 23, 42, 0.4); border: 1px solid rgba(255, 255, 255, 0.1); padding: 0.85rem 1.25rem; border-radius: 0.75rem; display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+        <span style="font-size: 0.9rem; color: var(--accent-cyan); font-weight: 600; display: flex; align-items: center; gap: 0.4rem;">🔔 Webhook Alerts (Slack / Teams / Discord):</span>
+        <input type="url" id="webhookUrlInput" class="url-input" placeholder="https://hooks.slack.com/services/... (Optional)" style="flex: 1; padding: 0.5rem 0.85rem; font-size: 0.85rem;">
+      </div>
+
+      <!-- Login Credentials Configuration Card -->
+      <div style="background: rgba(15, 23, 42, 0.5); border: 1px solid rgba(255, 255, 255, 0.1); padding: 1.25rem; border-radius: 0.875rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+          <h4 style="font-size: 1rem; color: var(--accent-cyan); display: flex; align-items: center; gap: 0.5rem;">
+            🔐 Automated Login Credentials Configuration
+          </h4>
+          <div class="login-mode-selector" style="display: flex; gap: 1.25rem; flex-wrap: wrap;">
+            <label style="font-size: 0.875rem; color: #cbd5e1; cursor: pointer; display: flex; align-items: center; gap: 0.4rem;">
+              <input type="radio" name="loginMode" value="random" onclick="handleLoginModeRadioChange(this.value)" onchange="handleLoginModeRadioChange(this.value)" checked> 🎲 Auto Random
+            </label>
+            <label style="font-size: 0.875rem; color: #cbd5e1; cursor: pointer; display: flex; align-items: center; gap: 0.4rem;">
+              <input type="radio" name="loginMode" value="custom" onclick="handleLoginModeRadioChange(this.value)" onchange="handleLoginModeRadioChange(this.value)"> ✍️ User Defined
+            </label>
+            <label style="font-size: 0.875rem; color: #cbd5e1; cursor: pointer; display: flex; align-items: center; gap: 0.4rem;">
+              <input type="radio" name="loginMode" value="csv" onclick="handleLoginModeRadioChange(this.value)" onchange="handleLoginModeRadioChange(this.value)"> 📂 Upload CSV File
+            </label>
+          </div>
+        </div>
+
+        <div id="customCredsContainer" style="display: none; margin-top: 1rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+            <span style="font-size: 0.85rem; color: var(--text-muted);">Add up to 50 credential pairs to test sequentially:</span>
+            <span id="credCountBadge" class="badge badge-purple" style="font-size: 0.8rem;">1 / 50 Pairs</span>
+          </div>
+          <div id="credentialRowsList" style="display: grid; gap: 0.75rem;">
+            <div class="cred-row" style="display: flex; gap: 0.75rem; align-items: center;">
+              <input type="text" class="url-input custom-username" placeholder="Username / Email" style="flex: 1;">
+              <input type="password" class="url-input custom-password" placeholder="Password" style="flex: 1;">
+              <button type="button" class="btn-remove-row btn-secondary" onclick="removeCredentialRow(this)" style="padding: 0.5rem 0.8rem; border-color: rgba(248, 113, 113, 0.4); color: #f87171; display: none;">🗑️</button>
+            </div>
+          </div>
+          <div style="margin-top: 0.85rem;">
+            <button type="button" id="addCredRowBtn" onclick="addCredentialRow()" class="btn-secondary" style="padding: 0.4rem 0.9rem; font-size: 0.85rem; border-color: rgba(6, 182, 212, 0.4); color: var(--accent-cyan);">➕ Add Credential Pair</button>
+          </div>
+        </div>
+
+        <div id="csvUploadContainer" style="display: none; margin-top: 1rem;">
+          <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; margin-bottom: 0.75rem;">
+            <input type="file" id="csvFileInput" accept=".csv" onchange="handleCsvFileSelected(this)" class="url-input" style="padding: 0.5rem 1rem; flex: 1; min-width: 250px;">
+            <span id="csvStatusBadge" class="badge badge-purple" style="font-size: 0.85rem;">No CSV Loaded</span>
+          </div>
+          <div id="csvPreviewBox" style="display: none; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 0.5rem; padding: 0.75rem;">
+            <div style="font-size: 0.8rem; color: #a78bfa; font-weight: 700; margin-bottom: 0.5rem;">📂 Uploaded CSV Credentials Preview:</div>
+            <div id="csvPreviewTableContent" style="max-height: 140px; overflow-y: auto; font-size: 0.8rem;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Live Status Banner -->
+    <div id="statusBanner" class="glass-card hidden" style="border-left: 4px solid var(--accent-cyan);">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h4 id="statusTitle" style="font-size: 1.1rem; color: var(--accent-cyan);">Processing Page...</h4>
+        <span id="progressPercent" style="font-weight: 800; color: var(--accent-cyan); font-size: 1.15rem;">0%</span>
+      </div>
+      <p id="statusMsg" style="color: var(--text-muted); font-size: 0.95rem; margin-top: 0.25rem;">Fetching elements and initializing automation engines...</p>
+
+      <div class="progress-bar-track" style="margin-top: 0.85rem; width: 100%; height: 10px; background: rgba(15, 23, 42, 0.6); border-radius: 9999px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.15);">
+        <div id="progressBarFill" style="width: 0%; height: 100%; background: linear-gradient(90deg, var(--accent-cyan), var(--accent-purple)); transition: width 0.4s ease; border-radius: 9999px;"></div>
+      </div>
+    </div>
+
+    <!-- Live Console Terminal -->
+    <div class="glass-card" style="padding: 1.25rem;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+        <h4 style="font-size: 1rem; color: var(--accent-cyan); display: flex; align-items: center; gap: 0.5rem; font-family: 'Fira Code', monospace;">
+          💻 Live Terminal Stream Log (WebSocket)
+        </h4>
+        <button id="clearTerminalBtn" class="btn-secondary" style="padding: 0.3rem 0.75rem; font-size: 0.8rem;">Clear Log</button>
+      </div>
+      <div id="terminalConsole" style="background: #090d16; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 0.75rem; padding: 1rem; height: 180px; overflow-y: auto; font-family: 'Fira Code', monospace; font-size: 0.85rem; color: #a7f3d0; line-height: 1.5;">
+        <div style="color: #64748b;">[System] Live terminal connected via WebSocket. Stream logs will appear here during execution...</div>
+      </div>
+    </div>
+
+    <!-- Metrics Stats Grid -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon icon-blue">⚡</div>
+        <div class="stat-info">
+          <h3 id="statPerfScore">100</h3>
+          <p>Core Web Vitals Score</p>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon icon-purple">♿</div>
+        <div class="stat-info">
+          <h3 id="statAccessScore">100</h3>
+          <p>WCAG Accessibility</p>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon icon-pink">👁️</div>
+        <div class="stat-info">
+          <h3 id="statVisualDiff">0.0%</h3>
+          <p>Visual Pixel Variance</p>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon icon-green">🩹</div>
+        <div class="stat-info">
+          <h3 id="statHealed">0</h3>
+          <p>Self-Healed Selectors</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Results & Analytics Card -->
+    <div class="glass-card">
+      <div class="tabs-header">
+        <button class="tab-btn active" data-tab="tabLinks">Discovered Links</button>
+        <button class="tab-btn" data-tab="tabButtons">Buttons & Interactive</button>
+        <button class="tab-btn" data-tab="tabInputs">Form Inputs</button>
+        <button class="tab-btn" data-tab="tabPerformance" id="performanceTabBtn" style="color: #38bdf8;">⚡ Web Vitals Speed</button>
+        <button class="tab-btn" data-tab="tabAccessibility" id="accessibilityTabBtn" style="color: #c084fc;">♿ WCAG Accessibility</button>
+        <button class="tab-btn" data-tab="tabVisualDiff" id="visualDiffTabBtn" style="color: var(--accent-pink);">👁️ Visual Regression Diff</button>
+        <button class="tab-btn" data-tab="tabEngineResults">Engine Execution</button>
+        <button class="tab-btn" data-tab="tabHistory" id="historyTabBtn" style="color: #60a5fa;">📜 Run History & Analytics</button>
+        <button class="tab-btn" data-tab="tabAllureReport" id="allureReportTabBtn" style="color: #c084fc;">📊 Allure Report</button>
+        <button class="tab-btn" data-tab="tabPlaywrightReport" id="playwrightReportTabBtn" style="color: var(--accent-cyan);">🎭 Playwright Report</button>
+      </div>
+
+      <!-- Links Tab -->
+      <div id="tabLinks" class="tab-content">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem; flex-wrap: wrap; gap: 0.75rem;">
+          <span style="font-size: 0.9rem; color: var(--text-muted);">Fetched & custom link elements to be tested:</span>
+          <button id="showAddCustomLinkBtn" class="btn-secondary" style="padding: 0.4rem 0.85rem; font-size: 0.85rem; border-color: rgba(6, 182, 212, 0.4); color: var(--accent-cyan);">➕ Add Custom Link</button>
+        </div>
+
+        <div id="addCustomLinkCard" class="hidden" style="background: rgba(15, 23, 42, 0.5); border: 1px solid var(--border-card); padding: 1rem; border-radius: 0.75rem; margin-bottom: 1rem;">
+          <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
+            <input type="text" id="customLinkText" class="url-input" placeholder="Link Display Text" style="flex: 1; min-width: 180px;">
+            <input type="text" id="customLinkHref" class="url-input" placeholder="Link Href / URL" style="flex: 2; min-width: 240px;">
+            <button id="addCustomLinkSubmitBtn" class="btn-primary" style="padding: 0.65rem 1.25rem;">Add Link</button>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 40px; text-align: center;"><input type="checkbox" id="selectAllLinks" checked title="Select / Deselect All Links"></th>
+                <th>#</th>
+                <th>Link Text</th>
+                <th>Target Href</th>
+                <th>Type</th>
+                <th>HTTP Status</th>
+                <th>CSS Selector</th>
+              </tr>
+            </thead>
+            <tbody id="linksTableBody">
+              <tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Enter a URL and click Start Crawl & Test to inspect elements</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Buttons Tab -->
+      <div id="tabButtons" class="tab-content hidden">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem; flex-wrap: wrap; gap: 0.75rem;">
+          <span style="font-size: 0.9rem; color: var(--text-muted);">Fetched & custom button elements to be tested:</span>
+          <button id="showAddCustomButtonBtn" class="btn-secondary" style="padding: 0.4rem 0.85rem; font-size: 0.85rem; border-color: rgba(192, 132, 252, 0.4); color: #c084fc;">➕ Add Custom Button</button>
+        </div>
+
+        <div id="addCustomButtonCard" class="hidden" style="background: rgba(15, 23, 42, 0.5); border: 1px solid var(--border-card); padding: 1rem; border-radius: 0.75rem; margin-bottom: 1rem;">
+          <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
+            <input type="text" id="customButtonText" class="url-input" placeholder="Button Label" style="flex: 1; min-width: 180px;">
+            <input type="text" id="customButtonSelector" class="url-input" placeholder="CSS Selector or ID" style="flex: 2; min-width: 240px;">
+            <button id="addCustomButtonSubmitBtn" class="btn-primary" style="padding: 0.65rem 1.25rem;">Add Button</button>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 40px; text-align: center;"><input type="checkbox" id="selectAllButtons" checked title="Select / Deselect All Buttons"></th>
+                <th>#</th>
+                <th>Button Label</th>
+                <th>Tag Name</th>
+                <th>Type / Role</th>
+                <th>Element ID</th>
+                <th>CSS Selector</th>
+              </tr>
+            </thead>
+            <tbody id="buttonsTableBody">
+              <tr><td colspan="7" style="text-align: center; color: var(--text-muted);">No button elements loaded yet</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Inputs Tab -->
+      <div id="tabInputs" class="tab-content hidden">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem; flex-wrap: wrap; gap: 0.75rem;">
+          <span style="font-size: 0.9rem; color: var(--text-muted);">Fetched & custom input elements to be tested:</span>
+          <button id="showAddCustomInputBtn" class="btn-secondary" style="padding: 0.4rem 0.85rem; font-size: 0.85rem; border-color: rgba(236, 72, 153, 0.4); color: var(--accent-pink);">➕ Add Custom Input</button>
+        </div>
+
+        <div id="addCustomInputCard" class="hidden" style="background: rgba(15, 23, 42, 0.5); border: 1px solid var(--border-card); padding: 1rem; border-radius: 0.75rem; margin-bottom: 1rem;">
+          <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
+            <input type="text" id="customInputType" class="url-input" placeholder="Type" style="flex: 1; min-width: 140px;">
+            <input type="text" id="customInputName" class="url-input" placeholder="Name" style="flex: 1; min-width: 160px;">
+            <input type="text" id="customInputSelector" class="url-input" placeholder="CSS Selector" style="flex: 2; min-width: 220px;">
+            <button id="addCustomInputSubmitBtn" class="btn-primary" style="padding: 0.65rem 1.25rem;">Add Input</button>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 40px; text-align: center;"><input type="checkbox" id="selectAllInputs" checked title="Select / Deselect All Inputs"></th>
+                <th>#</th>
+                <th>Input Type</th>
+                <th>Name Attribute</th>
+                <th>Element ID</th>
+                <th>Placeholder</th>
+                <th>CSS Selector</th>
+              </tr>
+            </thead>
+            <tbody id="inputsTableBody">
+              <tr><td colspan="7" style="text-align: center; color: var(--text-muted);">No input elements loaded yet</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Performance Audit Tab -->
+      <div id="tabPerformance" class="tab-content hidden">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+          <div>
+            <h3 style="font-size: 1.4rem; color: #38bdf8;">⚡ Core Web Vitals & Page Load Speed Audit</h3>
+            <p style="color: var(--text-muted); font-size: 0.9rem;">Browser Navigation Timing API metrics: TTFB, DOMContentLoaded, and Total Page Load Time.</p>
+          </div>
+        </div>
+        <div id="performanceContainer">
+          <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
+            Run a test suite to view Core Web Vitals performance audit results here!
+          </div>
+        </div>
+      </div>
+
+      <!-- Accessibility Audit Tab -->
+      <div id="tabAccessibility" class="tab-content hidden">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+          <div>
+            <h3 style="font-size: 1.4rem; color: #c084fc;">♿ WCAG 2.1 Accessibility Compliance Audit</h3>
+            <p style="color: var(--text-muted); font-size: 0.9rem;">DOM inspection for missing image alt attributes, unlabelled form fields, and empty button labels.</p>
+          </div>
+        </div>
+        <div id="accessibilityContainer">
+          <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
+            Run a test suite to view WCAG accessibility compliance violations here!
+          </div>
+        </div>
+      </div>
+
+      <!-- Visual Regression Diff Tab -->
+      <div id="tabVisualDiff" class="tab-content hidden">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+          <div>
+            <h3 style="font-size: 1.4rem; color: var(--accent-pink);">👁️ Visual Regression Testing & Image Diff</h3>
+            <p style="color: var(--text-muted); font-size: 0.9rem;">Side-by-side comparison of baseline screenshot vs current execution with pixel mismatch overlay.</p>
+          </div>
+        </div>
+        <div id="visualDiffContainer">
+          <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
+            Run a test suite to view visual regression diff comparison images here!
+          </div>
+        </div>
+      </div>
+
+      <!-- Engine Test Suite Tab -->
+      <div id="tabEngineResults" class="tab-content hidden">
+        <div id="engineSummaryContent" style="font-size: 0.95rem; color: var(--text-muted);">
+          Run a test suite to view detailed engine execution logs and self-healing statistics.
+        </div>
+      </div>
+
+      <!-- Historical Analytics Tab -->
+      <div id="tabHistory" class="tab-content hidden">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+          <div>
+            <h3 style="font-size: 1.4rem; color: #60a5fa;">📜 Test Run History & Analytics</h3>
+            <p style="color: var(--text-muted); font-size: 0.9rem;">Persistent SQLite run records and execution trends.</p>
+          </div>
+          <button id="refreshHistoryBtn" class="btn-secondary" style="font-size: 0.9rem;">🔄 Refresh History</button>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Run ID</th>
+                <th>Date / Time</th>
+                <th>Target URL</th>
+                <th>Engine</th>
+                <th>Passed</th>
+                <th>Failed</th>
+                <th>Web Vitals</th>
+                <th>WCAG Score</th>
+                <th>Duration</th>
+              </tr>
+            </thead>
+            <tbody id="historyTableBody">
+              <tr><td colspan="9" style="text-align: center; color: var(--text-muted);">Click Refresh History to fetch past test runs.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Allure Visual Report Tab -->
+      <div id="tabAllureReport" class="tab-content hidden">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+          <div>
+            <h3 style="font-size: 1.4rem; color: #c084fc;">📊 Interactive Allure Test Report</h3>
+            <p style="color: var(--text-muted); font-size: 0.9rem;">View test steps, logs, and screenshots directly below.</p>
+          </div>
+          <button id="refreshAllureBtn" class="btn-secondary" style="font-size: 0.9rem;">🔄 Refresh Report</button>
+        </div>
+
+        <div id="allureReportContainer">
+          <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
+            Click <strong>Start Crawl & Test</strong> to run a suite and view live Allure reports here!
+          </div>
+        </div>
+      </div>
+
+      <!-- Playwright Visual Report Tab -->
+      <div id="tabPlaywrightReport" class="tab-content hidden">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+          <div>
+            <h3 style="font-size: 1.4rem; color: var(--accent-cyan);">🎭 Interactive Playwright Test Report</h3>
+            <p style="color: var(--text-muted); font-size: 0.9rem;">View Playwright execution dashboard, step screenshots, and full screen recording video below.</p>
+          </div>
+          <button id="refreshPlaywrightBtn" class="btn-secondary" style="font-size: 0.9rem;">🔄 Refresh Playwright Report</button>
+        </div>
+
+        <div id="playwrightReportContainer">
+          <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
+            Click <strong>Get Playwright Report</strong> or run a test suite to view Playwright execution report!
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function handleLoginModeRadioChange(mode) {
+      var customCreds = document.getElementById("customCredsContainer");
+      var csvUpload = document.getElementById("csvUploadContainer");
+      if (!customCreds || !csvUpload) return;
+
+      if (mode === "custom") {
+        customCreds.style.setProperty("display", "block", "important");
+        csvUpload.style.setProperty("display", "none", "important");
+      } else if (mode === "csv") {
+        customCreds.style.setProperty("display", "none", "important");
+        csvUpload.style.setProperty("display", "block", "important");
+      } else {
+        customCreds.style.setProperty("display", "none", "important");
+        csvUpload.style.setProperty("display", "none", "important");
+      }
+    }
+
+    function toggleTokenInputRow(e) {
+      if (e) e.preventDefault();
+      var row = document.getElementById("hfTokenRow");
+      var btn = document.getElementById("toggleHfTokenBtn");
+      var input = document.getElementById("hfTokenInput");
+      if (!row) return;
+      var isHidden = row.style.display === "none" || !row.style.display;
+      if (isHidden) {
+        row.style.setProperty("display", "block", "important");
+        if (input) input.focus();
+        if (btn) {
+          btn.style.borderColor = "#06b6d4";
+          btn.style.color = "#06b6d4";
+          btn.style.background = "rgba(6, 182, 212, 0.15)";
+        }
+      } else {
+        row.style.setProperty("display", "none", "important");
+        if (btn) {
+          btn.style.borderColor = "";
+          btn.style.color = "";
+          btn.style.background = "";
+        }
+      }
+    }
+  </script>
+  <script src="/static/app.js?v=4.0.0"></script>
+</body>
+</html>

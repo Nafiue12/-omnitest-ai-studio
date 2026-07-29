@@ -1,0 +1,29 @@
+# Python & Virtualenv
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+env/
+ENV/
+
+# Test Results & Artifacts
+allure-results/
+allure-report/
+baselines/*.png
+!baselines/.gitkeep
+test_history.db
+test_report_archive.zip
+.pytest_cache/
+.coverage
+htmlcov/
+
+# System / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Environment / Secret Keys
+.env
+*.key
