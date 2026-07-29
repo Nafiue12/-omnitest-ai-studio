@@ -448,6 +448,36 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  if (crawlOnlyBtn) {
+    crawlOnlyBtn.addEventListener("click", async () => {
+      const url = targetUrlInput ? (targetUrlInput.value.trim() || targetUrlInput.placeholder.trim()) : "";
+      if (!url) return alert("Please enter a valid URL");
+
+      setLoading(true, "🔍 Fetching Elements...");
+      updateProgress(20, "🔍 Crawling DOM Elements", `Fetching links, buttons, and inputs for ${url}...`);
+
+      try {
+        const res = await fetch("/api/crawl", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: url, check_links: true })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Element fetch failed");
+
+        currentCrawlData = data;
+        renderDiscoveredData(data);
+
+        updateProgress(100, "🎉 DOM Elements Fetched Successfully!", `Discovered ${data.total_links || 0} links, ${data.total_buttons || 0} buttons, and ${data.total_inputs || 0} input fields!`);
+      } catch (err) {
+        updateProgress(100, "❌ Fetch Error", err.message);
+        alert(`Failed to fetch elements: ${err.message}`);
+      } finally {
+        setLoading(false);
+      }
+    });
+  }
+
   function renderPerformanceSection(results) {
     if (!performanceContainer) return;
     let html = ``;
