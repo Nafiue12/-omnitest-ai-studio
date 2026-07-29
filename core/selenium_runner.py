@@ -90,12 +90,23 @@ class SeleniumTestEngine:
                 driver_path = d_path
                 break
 
+        options.add_argument("--disable-software-rasterizer")
+        options.add_argument("--disable-extensions")
+
         try:
             if driver_path:
-                service = ChromeService(executable_path=driver_path)
+                try:
+                    service = ChromeService(executable_path=driver_path)
+                    self.driver = webdriver.Chrome(service=service, options=options)
+                except Exception as ex1:
+                    logger.warning(f"System chromedriver failed: {ex1}. Trying ChromeDriverManager fallback...")
+                    # Clear explicit binary location if system chromedriver mismatched
+                    options.binary_location = None
+                    service = ChromeService(ChromeDriverManager().install())
+                    self.driver = webdriver.Chrome(service=service, options=options)
             else:
                 service = ChromeService(ChromeDriverManager().install())
-            self.driver = webdriver.Chrome(service=service, options=options)
+                self.driver = webdriver.Chrome(service=service, options=options)
             self.driver.implicitly_wait(4)
         except Exception as e:
             logger.warning(f"Chrome driver setup failed: {e}")

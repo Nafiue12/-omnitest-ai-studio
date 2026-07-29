@@ -388,6 +388,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   runAgentBtn.addEventListener("click", async () => {
+    if (runAgentBtn.disabled) return;
     const url = targetUrlInput.value.trim() || targetUrlInput.placeholder.trim();
     if (!url) return alert("Please enter a valid URL");
 
@@ -886,12 +887,16 @@ document.addEventListener("DOMContentLoaded", () => {
         body: JSON.stringify(payload)
       });
       clearInterval(progressInterval);
-      let data;
+      let data = {};
       const responseText = await res.text();
-      try {
-        data = JSON.parse(responseText);
-      } catch (jsonErr) {
-        throw new Error(!res.ok ? `Server error (${res.status}): ${responseText.substring(0, 120)}...` : "Invalid JSON response from server");
+      if (responseText && responseText.trim()) {
+        try {
+          data = JSON.parse(responseText);
+        } catch (jsonErr) {
+          throw new Error(!res.ok ? `Server error (${res.status}): ${responseText.substring(0, 120)}` : "Invalid JSON response from server");
+        }
+      } else if (!res.ok) {
+        throw new Error(`Server returned empty response (Status: ${res.status})`);
       }
       if (!res.ok) throw new Error(data.detail || data.message || "Test execution failed");
 

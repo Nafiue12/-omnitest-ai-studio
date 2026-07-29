@@ -203,8 +203,12 @@ async def upload_csv_credentials(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Invalid CSV file: {str(e)}")
 
+agent_execution_lock = threading.Lock()
+
 @app.post("/api/run-tests")
 def run_agent_tests(req: TestRequest):
+    if not agent_execution_lock.acquire(blocking=False):
+        raise HTTPException(status_code=429, detail="A test suite execution is already in progress. Please wait for it to complete.")
     try:
         results = agent.run(
             url=req.url,
@@ -234,6 +238,11 @@ def run_agent_tests(req: TestRequest):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        try:
+            agent_execution_lock.release()
+        except Exception:
+            pass
 
 @app.post("/api/ai-prompt-test")
 def run_ai_prompt_test(req: AIPromptRequest):
