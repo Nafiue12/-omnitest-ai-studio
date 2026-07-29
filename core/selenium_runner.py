@@ -49,114 +49,60 @@ class SeleniumTestEngine:
         options = ChromeOptions()
         if self.headless:
             options.add_argument("--headless=new")
+            options.add_argument("--headless")
         options.add_argument("--no-sandbox")
         options.add_argument("--disable-dev-shm-usage")
         options.add_argument("--disable-gpu")
+        options.add_argument("--disable-setuid-sandbox")
+        options.add_argument("--remote-allow-origins=*")
+        options.add_argument("--remote-debugging-port=9222")
 
         width, height, ua = VIEWPORT_PRESETS_SELENIUM.get(device_viewport, VIEWPORT_PRESETS_SELENIUM["desktop"])
         options.add_argument(f"--window-size={width},{height}")
         if ua:
             options.add_argument(f"--user-agent={ua}")
 
-        options.add_argument("--remote-allow-origins=*")
-
-        options.add_argument("--disable-setuid-sandbox")
-        options.add_argument("--no-zygote")
-        options.add_argument("--disable-software-rasterizer")
-        options.add_argument("--disable-extensions")
-
-        pw_chromes = []
-        try:
-            from playwright.sync_api import sync_playwright
-            with sync_playwright() as p:
-                pw_exec = p.chromium.executable_path
-                if pw_exec and os.path.exists(pw_exec):
-                    pw_chromes.append(pw_exec)
-        except Exception:
-            pass
-
-        ms_pw_dir = os.path.expanduser(r"~\AppData\Local\ms-playwright")
-        if os.path.exists(ms_pw_dir):
-            for root, _, files in os.walk(ms_pw_dir):
-                if "chrome.exe" in files:
-                    pw_chromes.append(os.path.join(root, "chrome.exe"))
-
-        possible_binaries = pw_chromes + [
-            "/usr/bin/chromium",
-            "/usr/bin/chromium-browser",
-            "/usr/bin/google-chrome",
-            "/usr/bin/google-chrome-stable",
-            r"C:\Program Files\Google\Chrome\Application\chrome.exe",
-            r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
-            r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
-            r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
-            os.path.expanduser(r"~\AppData\Local\Google\Chrome\Application\chrome.exe"),
-        ]
-
-        for binary in possible_binaries:
-            if os.path.exists(binary):
-                options.binary_location = binary
-                break
-
-        driver_path = None
-        for d_path in ["/usr/bin/chromedriver", "/usr/lib/chromium-browser/chromedriver", "/usr/local/bin/chromedriver"]:
-            if os.path.exists(d_path):
-                driver_path = d_path
-                break
+        # On Windows, check for local Chrome installation binaries if needed
+        import sys
+        if sys.platform == "win32":
+            possible_binaries = [
+                r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+                r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+                os.path.expanduser(r"~\AppData\Local\Google\Chrome\Application\chrome.exe"),
+            ]
+            for binary in possible_binaries:
+                if os.path.exists(binary):
+                    options.binary_location = binary
+                    break
 
         try:
-            if driver_path:
-                try:
-                    service = ChromeService(executable_path=driver_path)
-                    self.driver = webdriver.Chrome(service=service, options=options)
-                except Exception as ex1:
-                    logger.warning(f"System chromedriver failed: {ex1}. Trying ChromeDriverManager fallback...")
-                    options.binary_location = ""
-                    service = ChromeService(ChromeDriverManager().install())
-                    self.driver = webdriver.Chrome(service=service, options=options)
-            else:
-                service = ChromeService(ChromeDriverManager().install())
-                self.driver = webdriver.Chrome(service=service, options=options)
+            service = ChromeService(ChromeDriverManager().install())
+            self.driver = webdriver.Chrome(service=service, options=options)
             self.driver.implicitly_wait(4)
         except Exception as e:
-            logger.warning(f"Primary Chrome setup failed: {e}. Attempting default Chrome options fallback...")
-            try:
-                # Fallback: launch default Chrome without custom binary location
-                fallback_options = ChromeOptions()
-                if self.headless:
-                    fallback_options.add_argument("--headless=new")
-                fallback_options.add_argument("--no-sandbox")
-                fallback_options.add_argument("--disable-dev-shm-usage")
-                fallback_options.add_argument("--disable-setuid-sandbox")
-                fallback_options.add_argument(f"--window-size={width},{height}")
-                service = ChromeService(ChromeDriverManager().install())
-                self.driver = webdriver.Chrome(service=service, options=fallback_options)
-                self.driver.implicitly_wait(4)
-            except Exception as e2:
-                logger.warning(f"Chrome driver setup failed: {e2}")
-                import sys
-                if sys.platform == "win32":
-                    try:
-                        from selenium.webdriver.edge.options import Options as EdgeOptions
-                        from selenium.webdriver.edge.service import Service as EdgeService
-                        from webdriver_manager.microsoft import EdgeChromiumDriverManager
+            logger.warning(f"Selenium Chrome setup failed: {e}")
+            if sys.platform == "win32":
+                try:
+                    from selenium.webdriver.edge.options import Options as EdgeOptions
+                    from selenium.webdriver.edge.service import Service as EdgeService
+                    from webdriver_manager.microsoft import EdgeChromiumDriverManager
 
-                        edge_options = EdgeOptions()
-                        if self.headless:
-                            edge_options.add_argument("--headless=new")
-                        edge_options.add_argument("--no-sandbox")
-                        edge_options.add_argument("--disable-dev-shm-usage")
-                        edge_options.add_argument(f"--window-size={width},{height}")
-                        if ua:
-                            edge_options.add_argument(f"--user-agent={ua}")
+                    edge_options = EdgeOptions()
+                    if self.headless:
+                        edge_options.add_argument("--headless=new")
+                    edge_options.add_argument("--no-sandbox")
+                    edge_options.add_argument("--disable-dev-shm-usage")
+                    edge_options.add_argument(f"--window-size={width},{height}")
+                    if ua:
+                        edge_options.add_argument(f"--user-agent={ua}")
 
-                        service = EdgeService(EdgeChromiumDriverManager().install())
-                        self.driver = webdriver.Edge(service=service, options=edge_options)
-                        self.driver.implicitly_wait(4)
-                    except Exception as edge_err:
-                        raise RuntimeError(f"Selenium browser startup failed: {edge_err}") from e2
-                else:
-                    raise RuntimeError(f"Selenium Chrome startup failed on Linux: {e2}") from e2
+                    service = EdgeService(EdgeChromiumDriverManager().install())
+                    self.driver = webdriver.Edge(service=service, options=edge_options)
+                    self.driver.implicitly_wait(4)
+                except Exception as edge_err:
+                    raise RuntimeError(f"Selenium browser startup failed: {edge_err}") from e
+            else:
+                raise RuntimeError(f"Selenium Chrome driver startup failed on Linux: {e}") from e
 
     def _heal_element(self, primary_by: By, primary_value: str, text_hint: str = "", tag_hint: str = ""):
         try:
