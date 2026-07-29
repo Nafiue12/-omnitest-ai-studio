@@ -344,7 +344,7 @@ class PlaywrightTestEngine:
                             with allure.step(f"Checking Link [{idx+1}]: {link.text[:30]}"):
                                 try:
                                     sel_val = link.css_selector or f"a[href='{link.href}']"
-                                    loc, is_healed, heal_reason = self._heal_element(
+                                    loc, is_healed, heal_reason = self._heal_locator(
                                         page, sel_val, text_hint=link.text, tag_hint="a"
                                     )
 
@@ -368,7 +368,7 @@ class PlaywrightTestEngine:
                             with allure.step(f"Testing Button [{idx+1}]: {btn.text[:30]}"):
                                 try:
                                     by_val = f"#{btn.id}" if btn.id else (btn.css_selector or btn.tag_name)
-                                    loc, is_healed, heal_reason = self._heal_element(
+                                    loc, is_healed, heal_reason = self._heal_locator(
                                         page, by_val, text_hint=btn.text, tag_hint=btn.tag_name or "button"
                                     )
 
@@ -403,9 +403,9 @@ class PlaywrightTestEngine:
                                 "password": f"Pass_{rnd_id}!"
                             }]
 
-                        user_loc, _, _ = self._heal_element(page, "input[type='email'], input[name*='user'], input[type='text']", tag_hint="input")
-                        pass_loc, _, _ = self._heal_element(page, "input[type='password'], input[name*='pass']", tag_hint="input")
-                        submit_loc, _, _ = self._heal_element(page, "button[type='submit'], input[type='submit'], form button", tag_hint="button")
+                        user_loc, _, _ = self._heal_locator(page, "input[type='email'], input[name*='user'], input[type='text']", tag_hint="input")
+                        pass_loc, _, _ = self._heal_locator(page, "input[type='password'], input[name*='pass']", tag_hint="input")
+                        submit_loc, _, _ = self._heal_locator(page, "button[type='submit'], input[type='submit'], form button", tag_hint="button")
 
                         if user_loc or pass_loc:
                             for cred_idx, cred in enumerate(creds_to_test):
