@@ -54,12 +54,18 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
+main_loop = None
+
+@app.on_event("startup")
+def startup_event():
+    global main_loop
+    main_loop = asyncio.get_running_loop()
+
 def broadcast_log_sync(level: str, text: str):
     msg = {"type": "log", "level": level, "text": text}
     try:
-        current_loop = asyncio.get_event_loop()
-        if current_loop.is_running():
-            current_loop.create_task(manager.broadcast(msg))
+        if main_loop and main_loop.is_running():
+            asyncio.run_coroutine_threadsafe(manager.broadcast(msg), main_loop)
     except Exception:
         pass
 

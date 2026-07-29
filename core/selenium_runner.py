@@ -68,6 +68,10 @@ class SeleniumTestEngine:
                     pw_chromes.append(os.path.join(root, "chrome.exe"))
 
         possible_binaries = pw_chromes + [
+            "/usr/bin/chromium",
+            "/usr/bin/chromium-browser",
+            "/usr/bin/google-chrome",
+            "/usr/bin/google-chrome-stable",
             r"C:\Program Files\Google\Chrome\Application\chrome.exe",
             r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
             r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
@@ -80,8 +84,17 @@ class SeleniumTestEngine:
                 options.binary_location = binary
                 break
 
+        driver_path = None
+        for d_path in ["/usr/bin/chromedriver", "/usr/lib/chromium-browser/chromedriver", "/usr/local/bin/chromedriver"]:
+            if os.path.exists(d_path):
+                driver_path = d_path
+                break
+
         try:
-            service = ChromeService(ChromeDriverManager().install())
+            if driver_path:
+                service = ChromeService(executable_path=driver_path)
+            else:
+                service = ChromeService(ChromeDriverManager().install())
             self.driver = webdriver.Chrome(service=service, options=options)
             self.driver.implicitly_wait(4)
         except Exception as e:
