@@ -27,7 +27,7 @@ os.makedirs(BASELINES_DIR, exist_ok=True)
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
-OUTPUT_DIR = "allure-results"
+OUTPUT_DIR = os.path.abspath("allure-results")
 REPORT_DIR = "allure-report"
 agent = WebTestingAgent(output_dir=OUTPUT_DIR)
 crawler = WebCrawler()

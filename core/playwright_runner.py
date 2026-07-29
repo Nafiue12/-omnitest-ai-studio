@@ -450,15 +450,24 @@ class PlaywrightTestEngine:
 
                 page.wait_for_timeout(1000)
                 video_obj = page.video
-                raw_video_path = video_obj.path() if video_obj else None
 
                 page.close()
                 context.close()
                 browser.close()
 
-                if raw_video_path and os.path.exists(raw_video_path):
-                    video_filename = os.path.basename(raw_video_path)
-                    results["video"] = video_filename
+                if video_obj:
+                    try:
+                        raw_video_path = video_obj.path()
+                        if raw_video_path and os.path.exists(raw_video_path):
+                            video_filename = os.path.basename(raw_video_path)
+                            target_video_path = os.path.abspath(os.path.join(output_dir, video_filename))
+                            if os.path.abspath(raw_video_path) != target_video_path:
+                                import shutil
+                                shutil.copy2(raw_video_path, target_video_path)
+                            results["video"] = video_filename
+                            self._emit(log_callback, "info", f"Saved screen recording video: {video_filename}")
+                    except Exception as v_err:
+                        logger.warning(f"Playwright video path extraction warning: {v_err}")
 
         except Exception as suite_ex:
             self._emit(log_callback, "error", f"Playwright suite exception: {suite_ex}")

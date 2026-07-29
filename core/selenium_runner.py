@@ -155,6 +155,7 @@ class SeleniumTestEngine:
             "passed": 0,
             "failed": 0,
             "healed_count": 0,
+            "screenshots": [],
             "self_healing_events": [],
             "visual_regression": {},
             "performance": {},
@@ -178,6 +179,7 @@ class SeleniumTestEngine:
                 ss_path = os.path.join(output_dir, ss_filename)
                 with open(ss_path, "wb") as f:
                     f.write(screenshot_png)
+                results["screenshots"].append(ss_filename)
 
                 allure.attach(
                     screenshot_png,

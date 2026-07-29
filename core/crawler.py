@@ -56,18 +56,56 @@ class WebCrawler:
         self.timeout = timeout
         self.headers = {"User-Agent": self.user_agent}
 
+    def _fetch_dynamic_html(self, url: str) -> str:
+        """Fallback to Playwright headless browser to render dynamic JavaScript SPAs."""
+        try:
+            from playwright.sync_api import sync_playwright
+            logger.info(f"Using headless browser fallback to render dynamic DOM for: {url}")
+            with sync_playwright() as p:
+                browser = p.chromium.launch(headless=True)
+                context = browser.new_context(user_agent=self.user_agent)
+                page = context.new_page()
+                page.goto(url, wait_until="domcontentloaded", timeout=15000)
+                page.wait_for_timeout(1500)
+                content = page.content()
+                context.close()
+                browser.close()
+                return content
+        except Exception as e:
+            logger.warning(f"Headless Playwright DOM fetch failed: {e}")
+            return ""
+
     def fetch_and_parse(self, url: str, check_links: bool = True) -> PageStructure:
-        """Fetches target URL, parses HTML, extracts links, buttons, inputs."""
+        """Fetches target URL, parses HTML, extracts links, buttons, inputs. Supports dynamic JS sites."""
         logger.info(f"Crawling URL: {url}")
         
         parsed_base = urllib.parse.urlparse(url)
         base_domain = parsed_base.netloc
+        html_text = ""
 
-        response = requests.get(url, headers=self.headers, timeout=self.timeout)
-        response.raise_for_status()
+        try:
+            response = requests.get(url, headers=self.headers, timeout=self.timeout)
+            if response.status_code == 200:
+                html_text = response.text
+        except Exception as ex:
+            logger.warning(f"Static HTTP request failed for {url}: {ex}. Trying headless browser fallback...")
 
-        soup = BeautifulSoup(response.text, "html.parser")
+        # If static request failed or returned empty DOM, fallback to Playwright headless browser
+        if not html_text or len(html_text) < 300:
+            html_text = self._fetch_dynamic_html(url)
+
+        soup = BeautifulSoup(html_text or "<html></html>", "html.parser")
         title = soup.title.string.strip() if soup.title and soup.title.string else "No Title"
+
+        # Check if static HTML produced zero interactive elements (likely dynamic SPA app)
+        initial_buttons = len(soup.find_all(["button", "input"]))
+        initial_links = len(soup.find_all("a", href=True))
+        if initial_buttons == 0 and initial_links == 0:
+            dynamic_html = self._fetch_dynamic_html(url)
+            if dynamic_html:
+                html_text = dynamic_html
+                soup = BeautifulSoup(html_text, "html.parser")
+                title = soup.title.string.strip() if soup.title and soup.title.string else title
 
         # 1. Links Extraction
         links: List[LinkItem] = []
