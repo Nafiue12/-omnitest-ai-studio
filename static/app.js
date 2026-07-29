@@ -462,7 +462,13 @@ document.addEventListener("DOMContentLoaded", () => {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ url: url, check_links: true })
         });
-        const data = await res.json();
+        let data;
+        const responseText = await res.text();
+        try {
+          data = JSON.parse(responseText);
+        } catch (jsonErr) {
+          throw new Error(!res.ok ? `Server error (${res.status}): ${responseText.substring(0, 120)}...` : "Invalid JSON response");
+        }
         if (!res.ok) throw new Error(data.detail || "Element fetch failed");
 
         currentCrawlData = data;
@@ -880,8 +886,14 @@ document.addEventListener("DOMContentLoaded", () => {
         body: JSON.stringify(payload)
       });
       clearInterval(progressInterval);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "Test execution failed");
+      let data;
+      const responseText = await res.text();
+      try {
+        data = JSON.parse(responseText);
+      } catch (jsonErr) {
+        throw new Error(!res.ok ? `Server error (${res.status}): ${responseText.substring(0, 120)}...` : "Invalid JSON response from server");
+      }
+      if (!res.ok) throw new Error(data.detail || data.message || "Test execution failed");
 
       const results = data.results;
       currentCrawlData = results.discovered;
@@ -1095,7 +1107,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     try {
       const res = await fetch("/api/generate-allure-report");
-      const data = await res.json();
+      const text = await res.text();
+      let data = {};
+      try { data = JSON.parse(text); } catch (e) { data = {}; }
       allureReportContainer.innerHTML = buildComprehensiveReportHTML("Allure", data, false);
     } catch (err) {
       allureReportContainer.innerHTML = `<div style="color: #f87171; padding: 1rem;">Failed to load Allure report: ${err.message}</div>`;
@@ -1108,7 +1122,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     try {
       const res = await fetch("/api/generate-playwright-report");
-      const data = await res.json();
+      const text = await res.text();
+      let data = {};
+      try { data = JSON.parse(text); } catch (e) { data = {}; }
       playwrightReportContainer.innerHTML = buildComprehensiveReportHTML("Playwright", data, true);
     } catch (err) {
       playwrightReportContainer.innerHTML = `<div style="color: #f87171; padding: 1rem;">Failed to load Playwright report: ${err.message}</div>`;
