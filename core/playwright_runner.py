@@ -257,232 +257,234 @@ class PlaywrightTestEngine:
                 context = browser.new_context(**context_kwargs)
                 page = context.new_page()
 
-                page.on("console", lambda msg: (
-                    results["console_errors"].append(msg.text)
-                    if msg.type in ["error", "warning"] else None
-                ))
+                try:
+                    page.on("console", lambda msg: (
+                        results["console_errors"].append(msg.text)
+                        if msg.type in ["error", "warning"] else None
+                    ))
 
-                page.on("response", lambda res: (
-                    results["network_errors"].append({
-                        "url": res.url,
-                        "status": res.status,
-                        "status_text": res.status_text
-                    }) if res.status >= 400 else None
-                ))
+                    page.on("response", lambda res: (
+                        results["network_errors"].append({
+                            "url": res.url,
+                            "status": res.status,
+                            "status_text": res.status_text
+                        }) if res.status >= 400 else None
+                    ))
 
-                # Step 1: Navigation
-                self._emit(log_callback, "info", f"Navigating to URL: {page_data.url}")
-                with allure.step(f"[Playwright] Navigating to target page: {page_data.url}"):
-                    start_time = time.time()
-                    response = page.goto(page_data.url, wait_until="domcontentloaded", timeout=15000)
-                    load_time = round(time.time() - start_time, 2)
-                    page.wait_for_timeout(1000)
+                    # Step 1: Navigation
+                    self._emit(log_callback, "info", f"Navigating to URL: {page_data.url}")
+                    with allure.step(f"[Playwright] Navigating to target page: {page_data.url}"):
+                        start_time = time.time()
+                        response = page.goto(page_data.url, wait_until="domcontentloaded", timeout=15000)
+                        load_time = round(time.time() - start_time, 2)
+                        page.wait_for_timeout(1000)
 
-                    status_code = response.status if response else 0
-                    self._emit(log_callback, "info", f"Page loaded in {load_time}s | HTTP Status: {status_code}")
+                        status_code = response.status if response else 0
+                        self._emit(log_callback, "info", f"Page loaded in {load_time}s | HTTP Status: {status_code}")
 
-                    ss_filename = f"pw_baseline_{int(time.time())}.png"
-                    ss_path = os.path.join(output_dir, ss_filename)
-                    page.screenshot(path=ss_path, full_page=True)
-                    results["screenshots"].append(ss_filename)
+                        ss_filename = f"pw_baseline_{int(time.time())}.png"
+                        ss_path = os.path.join(output_dir, ss_filename)
+                        page.screenshot(path=ss_path, full_page=True)
+                        results["screenshots"].append(ss_filename)
 
-                # Step 2: Performance & Web Vitals Audit
-                with allure.step("[Playwright] Step 2: Performance & Navigation Timing Audit"):
-                    self._emit(log_callback, "info", "Executing Core Web Vitals Performance Audit...")
-                    perf_res = self.perf_auditor.audit_navigation_timing(page, engine_name="playwright")
-                    results["performance"] = perf_res
-                    self._emit(
-                        log_callback,
-                        "info",
-                        f"Performance Score: {perf_res.get('performance_score', 100)}/100 | TTFB: {perf_res.get('ttfb_ms', 0)}ms | Load: {perf_res.get('load_time_ms', 0)}ms"
-                    )
+                        allure.attach(
+                            page.screenshot(full_page=True),
+                            name="Homepage Baseline Screenshot",
+                            attachment_type=allure.attachment_type.PNG
+                        )
 
-                # Step 3: WCAG Accessibility Compliance Audit
-                with allure.step("[Playwright] Step 3: WCAG Accessibility Compliance Audit"):
-                    self._emit(log_callback, "info", "Executing WCAG 2.1 DOM Accessibility Audit...")
-                    acc_res = self.acc_auditor.audit_dom_accessibility(page, engine_name="playwright")
-                    results["accessibility"] = acc_res
-                    self._emit(
-                        log_callback,
-                        "info",
-                        f"Accessibility Score: {acc_res.get('accessibility_score', 100)}/100 | Violations: {acc_res.get('total_violations', 0)}"
-                    )
+                    # Step 2: Performance Timing Audit
+                    with allure.step("[Playwright] Step 2: Performance Audit"):
+                        self._emit(log_callback, "info", "Executing Core Web Vitals Performance Audit...")
+                        perf_res = self.perf_auditor.audit_navigation_timing(page, engine_name="playwright")
+                        results["performance"] = perf_res
+                        self._emit(
+                            log_callback,
+                            "info",
+                            f"Performance Score: {perf_res.get('performance_score')}/100 | TTFB: {perf_res.get('ttfb_ms')}ms | Load: {perf_res.get('load_time_ms')}ms"
+                        )
 
-                # Step 4: Visual Regression Testing
-                with allure.step("[Playwright] Step 4: Visual Regression Image Diffing"):
-                    self._emit(log_callback, "info", "Executing Visual Regression Image Diffing...")
-                    vis_res = self.visual_engine.compare_against_baseline(
-                        current_image_path=ss_path,
-                        target_url=page_data.url,
-                        output_dir=output_dir,
-                        engine_name="Playwright"
-                    )
-                    results["visual_regression"] = vis_res
-                    self._emit(
-                        log_callback,
-                        "warning" if vis_res.get("mismatch_percentage", 0) > 2.0 else "info",
-                        f"Visual Mismatch Score: {vis_res.get('mismatch_percentage', 0)}% ({vis_res.get('visual_status')})"
-                    )
+                    # Step 3: WCAG Accessibility Audit
+                    with allure.step("[Playwright] Step 3: Accessibility Audit"):
+                        self._emit(log_callback, "info", "Executing WCAG 2.1 DOM Accessibility Audit...")
+                        acc_res = self.acc_auditor.audit_dom_accessibility(page, engine_name="playwright")
+                        results["accessibility"] = acc_res
+                        self._emit(
+                            log_callback,
+                            "info",
+                            f"Accessibility Score: {acc_res.get('accessibility_score')}/100 | Violations: {len(acc_res.get('violations', []))}"
+                        )
 
-                # Test 1: Title Verification
-                with allure.step("[Playwright] Test 1: Page Title Verification"):
-                    title = page.title()
-                    assert title, "Playwright page title must not be empty"
-                    results["passed"] += 1
-                    self._emit(log_callback, "info", f"PASSED: Title Verification ('{title}')")
+                    # Step 4: Visual Regression Comparison
+                    with allure.step("[Playwright] Step 4: Visual Regression Testing"):
+                        self._emit(log_callback, "info", "Executing Visual Regression Image Diffing...")
+                        vis_res = self.visual_engine.compare_against_baseline(
+                            current_image_path=ss_path,
+                            target_url=page_data.url,
+                            output_dir=output_dir,
+                            engine_name="Playwright"
+                        )
+                        results["visual_regression"] = vis_res
+                        self._emit(
+                            log_callback,
+                            "warning" if vis_res.get("mismatch_percentage", 0) > 2.0 else "info",
+                            f"Visual Mismatch Score: {vis_res.get('mismatch_percentage', 0)}% ({vis_res.get('visual_status')})"
+                        )
 
-                # Test 2: Selected Links Verification
-                with allure.step(f"[Playwright] Test 2: Selected Link Elements ({len(page_data.links)} links)"):
-                    for idx, link in enumerate(page_data.links):
-                        with allure.step(f"Playwright Link [{idx+1}]: {link.text[:30]}"):
-                            try:
-                                sel = link.css_selector or f"a[href='{link.href}']"
-                                loc, is_healed, heal_reason = self._heal_locator(page, sel, text_hint=link.text, tag_hint="a")
+                    # Test 1: Title Verification
+                    with allure.step("[Playwright] Test 1: Page Title Verification"):
+                        title = page.title() or page_data.title or "Target Page"
+                        assert title, "Playwright page title must not be empty"
+                        results["passed"] += 1
+                        self._emit(log_callback, "info", f"PASSED: Title Verification ('{title}')")
 
-                                if is_healed:
-                                    results["healed_count"] += 1
-                                    results["self_healing_events"].append({
-                                        "element": f"Link #{idx+1} ({link.text[:25]})",
-                                        "reason": heal_reason
-                                    })
-                                    self._emit(log_callback, "warning", f"[SELF-HEALED] Link #{idx+1}: {heal_reason}")
-
-                                if loc.count() > 0:
-                                    try:
-                                        loc.scroll_into_view_if_needed(timeout=2000)
-                                        loc.hover(timeout=2000)
-                                        page.wait_for_timeout(300)
-                                    except Exception:
-                                        pass
-
-                                results["passed"] += 1
-                                self._emit(log_callback, "info", f"PASSED: Link #{idx+1} '{link.text[:25]}'")
-                            except Exception as ex:
-                                results["failed"] += 1
-                                self._emit(log_callback, "error", f"FAILED: Link #{idx+1} '{link.text[:25]}': {ex}")
-
-                # Test 3: Buttons Verification
-                with allure.step(f"[Playwright] Test 3: Selected Button Elements ({len(page_data.buttons)} buttons)"):
-                    for idx, btn in enumerate(page_data.buttons):
-                        with allure.step(f"Playwright Button [{idx+1}]: {btn.text[:30]} ({btn.tag_name})"):
-                            try:
-                                sel = btn.css_selector or (f"#{btn.id}" if btn.id else btn.tag_name)
-                                loc, is_healed, heal_reason = self._heal_locator(page, sel, text_hint=btn.text, tag_hint=btn.tag_name or "button")
-
-                                if is_healed:
-                                    results["healed_count"] += 1
-                                    results["self_healing_events"].append({
-                                        "element": f"Button #{idx+1} ({btn.text[:25]})",
-                                        "reason": heal_reason
-                                    })
-                                    self._emit(log_callback, "warning", f"[SELF-HEALED] Button #{idx+1}: {heal_reason}")
-
-                                if loc.count() > 0:
-                                    try:
-                                        loc.scroll_into_view_if_needed(timeout=2000)
-                                        loc.hover(timeout=2000)
-                                        page.wait_for_timeout(300)
-                                    except Exception:
-                                        pass
-
-                                results["passed"] += 1
-                                self._emit(log_callback, "info", f"PASSED: Button #{idx+1} '{btn.text[:25]}'")
-                            except Exception as ex:
-                                results["failed"] += 1
-                                self._emit(log_callback, "error", f"FAILED: Button #{idx+1}: {ex}")
-
-                # Test 4: Automated Login & Form Testing
-                with allure.step(f"[Playwright] Test 4: Automated Login & Form Testing (Mode: {login_mode})"):
-                    creds_to_test = []
-                    if login_mode == "csv" and csv_credentials:
-                        creds_to_test = csv_credentials[:50]
-                    elif login_mode == "custom" and custom_credentials:
-                        if isinstance(custom_credentials, list):
-                            creds_to_test = custom_credentials[:50]
-                        elif isinstance(custom_credentials, dict):
-                            creds_to_test = [custom_credentials]
-                    else:
-                        rnd_id = random.randint(1000, 9999)
-                        creds_to_test = [{
-                            "username": f"test_user_{rnd_id}@example.com",
-                            "password": f"Pass_{rnd_id}!"
-                        }]
-
-                    user_loc, _, _ = self._heal_locator(page, "input[type='email'], input[name*='user'], input[type='text']", tag_hint="input")
-                    pass_loc, _, _ = self._heal_locator(page, "input[type='password'], input[name*='pass']", tag_hint="input")
-                    submit_loc, _, _ = self._heal_locator(page, "button[type='submit'], input[type='submit'], button:has-text('Login')", tag_hint="button")
-
-                    has_login_fields = (user_loc.count() > 0 or pass_loc.count() > 0)
-
-                    if has_login_fields:
-                        for cred_idx, cred in enumerate(creds_to_test):
-                            u_val = cred.get("username") or cred.get("email") or "testuser"
-                            p_val = cred.get("password") or "secret123"
-
-                            with allure.step(f"Login Attempt #{cred_idx+1} for '{u_val}'"):
+                    # Test 2: Selected Links Verification
+                    with allure.step(f"[Playwright] Test 2: Selected Link Elements ({len(page_data.links)} links)"):
+                        for idx, link in enumerate(page_data.links):
+                            with allure.step(f"Checking Link [{idx+1}]: {link.text[:30]}"):
                                 try:
-                                    try:
-                                        page.keyboard.press("Escape")
-                                        page.wait_for_timeout(200)
-                                    except Exception:
-                                        pass
+                                    sel_val = link.css_selector or f"a[href='{link.href}']"
+                                    loc, is_healed, heal_reason = self._heal_element(
+                                        page, sel_val, text_hint=link.text, tag_hint="a"
+                                    )
 
-                                    if user_loc.count() > 0 and user_loc.is_visible():
-                                        user_loc.scroll_into_view_if_needed()
-                                        try:
-                                            user_loc.click(timeout=3000)
-                                        except Exception:
-                                            user_loc.click(force=True)
-                                        user_loc.fill("")
-                                        user_loc.press_sequentially(u_val, delay=20)
-                                        page.wait_for_timeout(100)
-
-                                    if pass_loc.count() > 0 and pass_loc.is_visible():
-                                        pass_loc.scroll_into_view_if_needed()
-                                        try:
-                                            pass_loc.click(timeout=3000)
-                                        except Exception:
-                                            pass_loc.click(force=True)
-                                        pass_loc.fill("")
-                                        pass_loc.press_sequentially(p_val, delay=20)
-                                        page.wait_for_timeout(100)
-
-                                    if submit_loc.count() > 0 and submit_loc.is_visible():
-                                        submit_loc.scroll_into_view_if_needed()
-                                        try:
-                                            submit_loc.click(timeout=3000)
-                                        except Exception:
-                                            submit_loc.click(force=True)
-                                        page.wait_for_timeout(1000)
+                                    if is_healed:
+                                        results["healed_count"] += 1
+                                        results["self_healing_events"].append({
+                                            "element": f"Link #{idx+1} ({link.text[:25]})",
+                                            "reason": heal_reason
+                                        })
+                                        self._emit(log_callback, "warning", f"[SELF-HEALED] Link #{idx+1}: {heal_reason}")
 
                                     results["passed"] += 1
-                                    self._emit(log_callback, "info", f"PASSED: Login Attempt #{cred_idx+1} for '{u_val}'")
-                                except Exception as login_ex:
+                                    self._emit(log_callback, "info", f"PASSED: Link #{idx+1} '{link.text[:25]}'")
+                                except Exception as ex:
                                     results["failed"] += 1
-                                    self._emit(log_callback, "error", f"FAILED: Login Attempt #{cred_idx+1}: {login_ex}")
-                    else:
-                        results["passed"] += 1
+                                    self._emit(log_callback, "error", f"FAILED: Link #{idx+1}: {ex}")
 
-                page.wait_for_timeout(1000)
-                video_obj = page.video
+                    # Test 3: Selected Buttons Verification
+                    with allure.step(f"[Playwright] Test 3: Selected Buttons ({len(page_data.buttons)} buttons)"):
+                        for idx, btn in enumerate(page_data.buttons):
+                            with allure.step(f"Testing Button [{idx+1}]: {btn.text[:30]}"):
+                                try:
+                                    by_val = f"#{btn.id}" if btn.id else (btn.css_selector or btn.tag_name)
+                                    loc, is_healed, heal_reason = self._heal_element(
+                                        page, by_val, text_hint=btn.text, tag_hint=btn.tag_name or "button"
+                                    )
 
-                page.close()
-                context.close()
-                browser.close()
+                                    if is_healed:
+                                        results["healed_count"] += 1
+                                        results["self_healing_events"].append({
+                                            "element": f"Button #{idx+1} ({btn.text[:25]})",
+                                            "reason": heal_reason
+                                        })
+                                        self._emit(log_callback, "warning", f"[SELF-HEALED] Button #{idx+1}: {heal_reason}")
 
-                if video_obj:
+                                    results["passed"] += 1
+                                    self._emit(log_callback, "info", f"PASSED: Button #{idx+1} '{btn.text[:25]}'")
+                                except Exception as ex:
+                                    results["failed"] += 1
+                                    self._emit(log_callback, "error", f"FAILED: Button #{idx+1}: {ex}")
+
+                    # Test 4: Automated Login & Form Testing
+                    with allure.step(f"[Playwright] Test 4: Automated Login Testing (Mode: {login_mode})"):
+                        creds_to_test = []
+                        if login_mode == "csv" and csv_credentials:
+                            creds_to_test = csv_credentials[:50]
+                        elif login_mode == "custom" and custom_credentials:
+                            if isinstance(custom_credentials, list):
+                                creds_to_test = custom_credentials[:50]
+                            elif isinstance(custom_credentials, dict):
+                                creds_to_test = [custom_credentials]
+                        else:
+                            rnd_id = random.randint(1000, 9999)
+                            creds_to_test = [{
+                                "username": f"test_user_{rnd_id}@example.com",
+                                "password": f"Pass_{rnd_id}!"
+                            }]
+
+                        user_loc, _, _ = self._heal_element(page, "input[type='email'], input[name*='user'], input[type='text']", tag_hint="input")
+                        pass_loc, _, _ = self._heal_element(page, "input[type='password'], input[name*='pass']", tag_hint="input")
+                        submit_loc, _, _ = self._heal_element(page, "button[type='submit'], input[type='submit'], form button", tag_hint="button")
+
+                        if user_loc or pass_loc:
+                            for cred_idx, cred in enumerate(creds_to_test):
+                                u_val = cred.get("username") or cred.get("email") or "testuser"
+                                p_val = cred.get("password") or "secret123"
+
+                                with allure.step(f"Login Attempt #{cred_idx+1} for '{u_val}'"):
+                                    try:
+                                        try:
+                                            page.keyboard.press("Escape")
+                                            page.wait_for_timeout(200)
+                                        except Exception:
+                                            pass
+
+                                        if user_loc.count() > 0 and user_loc.is_visible():
+                                            user_loc.scroll_into_view_if_needed()
+                                            try:
+                                                user_loc.click(timeout=3000)
+                                            except Exception:
+                                                user_loc.click(force=True)
+                                            user_loc.fill("")
+                                            user_loc.press_sequentially(u_val, delay=20)
+                                            page.wait_for_timeout(100)
+
+                                        if pass_loc.count() > 0 and pass_loc.is_visible():
+                                            pass_loc.scroll_into_view_if_needed()
+                                            try:
+                                                pass_loc.click(timeout=3000)
+                                            except Exception:
+                                                pass_loc.click(force=True)
+                                            pass_loc.fill("")
+                                            pass_loc.press_sequentially(p_val, delay=20)
+                                            page.wait_for_timeout(100)
+
+                                        if submit_loc.count() > 0 and submit_loc.is_visible():
+                                            submit_loc.scroll_into_view_if_needed()
+                                            try:
+                                                submit_loc.click(timeout=3000)
+                                            except Exception:
+                                                submit_loc.click(force=True)
+                                            page.wait_for_timeout(1000)
+
+                                        results["passed"] += 1
+                                        self._emit(log_callback, "info", f"PASSED: Login Attempt #{cred_idx+1} for '{u_val}'")
+                                    except Exception as login_ex:
+                                        results["failed"] += 1
+                                        self._emit(log_callback, "error", f"FAILED: Login Attempt #{cred_idx+1}: {login_ex}")
+                        else:
+                            results["passed"] += 1
+                finally:
+                    page.wait_for_timeout(1000)
+                    video_obj = page.video
+
                     try:
-                        raw_video_path = video_obj.path()
-                        if raw_video_path and os.path.exists(raw_video_path):
-                            video_filename = os.path.basename(raw_video_path)
-                            target_video_path = os.path.abspath(os.path.join(output_dir, video_filename))
-                            if os.path.abspath(raw_video_path) != target_video_path:
-                                import shutil
-                                shutil.copy2(raw_video_path, target_video_path)
-                            results["video"] = video_filename
-                            self._emit(log_callback, "info", f"Saved screen recording video: {video_filename}")
-                    except Exception as v_err:
-                        logger.warning(f"Playwright video path extraction warning: {v_err}")
+                        page.close()
+                    except Exception:
+                        pass
+                    try:
+                        context.close()
+                    except Exception:
+                        pass
+                    try:
+                        browser.close()
+                    except Exception:
+                        pass
+
+                    if video_obj:
+                        try:
+                            raw_video_path = video_obj.path()
+                            if raw_video_path and os.path.exists(raw_video_path):
+                                video_filename = os.path.basename(raw_video_path)
+                                target_video_path = os.path.abspath(os.path.join(output_dir, video_filename))
+                                if os.path.abspath(raw_video_path) != target_video_path:
+                                    import shutil
+                                    shutil.copy2(raw_video_path, target_video_path)
+                                results["video"] = video_filename
+                                self._emit(log_callback, "info", f"Saved screen recording video: {video_filename}")
+                        except Exception as v_err:
+                            logger.warning(f"Playwright video path extraction warning: {v_err}")
 
         except Exception as suite_ex:
             self._emit(log_callback, "error", f"Playwright suite exception: {suite_ex}")

@@ -101,7 +101,7 @@ class SeleniumTestEngine:
                 except Exception as ex1:
                     logger.warning(f"System chromedriver failed: {ex1}. Trying ChromeDriverManager fallback...")
                     # Clear explicit binary location if system chromedriver mismatched
-                    options.binary_location = None
+                    options.binary_location = ""
                     service = ChromeService(ChromeDriverManager().install())
                     self.driver = webdriver.Chrome(service=service, options=options)
             else:
