@@ -209,6 +209,9 @@ class PlaywrightTestEngine:
 
         return page.locator(primary_selector), False, None
 
+    # Backward compatibility alias
+    _heal_element = _heal_locator
+
     def execute_test_suite(
         self,
         page_data: PageStructure,
