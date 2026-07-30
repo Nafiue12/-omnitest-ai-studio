@@ -346,20 +346,8 @@ class PlaywrightTestEngine:
                                     if (existing) existing.remove();
                                     const b = document.createElement('div');
                                     b.id = 'ai-status-banner';
-                                    b.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:linear-gradient(135deg,#0f172a,#1e1b4b);color:#ffffff;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:sans-serif;z-index:9999999;box-sizing:border-box;padding:20px;';
-                                    b.innerHTML = `
-                                        <div style="background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:16px;padding:36px;text-align:center;max-width:550px;box-shadow:0 20px 40px rgba(0,0,0,0.5);">
-                                            <div style="font-size:48px;margin-bottom:16px;">🌐</div>
-                                            <h2 style="font-size:22px;color:#f43f5e;margin:0 0 12px 0;font-weight:700;">Target Site HTTP {status_code} Response</h2>
-                                            <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 20px 0;">The target web server (<b>{target_domain}</b>) returned an HTTP {status_code} Rate Limit page to cloud requests.</p>
-                                            <div style="padding:14px;background:rgba(244,63,94,0.12);border-radius:10px;color:#fda4af;font-size:13px;text-align:left;">
-                                                <b>Automated Testing Status:</b><br/>
-                                                • WCAG Accessibility Audit: Passed (100/100)<br/>
-                                                • Core Web Vitals Audit: Completed<br/>
-                                                • DOM Elements & Links: Verified
-                                            </div>
-                                        </div>
-                                    `;
+                                    b.style.cssText = 'position:fixed;top:12px;right:12px;z-index:999999;background:rgba(15,23,42,0.95);border:1px solid rgba(244,63,94,0.4);border-radius:10px;color:#ffffff;padding:12px 16px;font-family:sans-serif;font-size:13px;max-width:380px;box-shadow:0 8px 24px rgba(0,0,0,0.4);pointer-events:none;backdrop-filter:blur(8px);';
+                                    b.innerHTML = `<span style="color:#f43f5e;font-weight:bold;">⚠️ Status {status_code}:</span> Server rate-limited cloud IPs for <b>{target_domain}</b>. Executing live DOM test suite...`;
                                     document.body.appendChild(b);
                                 }}""")
                         except Exception:
@@ -441,6 +429,14 @@ class PlaywrightTestEngine:
                                         })
                                         self._emit(log_callback, "warning", f"[SELF-HEALED] Link #{idx+1}: {heal_reason}")
 
+                                    if loc.count() > 0:
+                                        try:
+                                            loc.scroll_into_view_if_needed(timeout=1000)
+                                            loc.hover(timeout=1000)
+                                            page.wait_for_timeout(100)
+                                        except Exception:
+                                            pass
+
                                     results["passed"] += 1
                                     self._emit(log_callback, "info", f"PASSED: Link #{idx+1} '{link.text[:25]}'")
                                 except Exception as ex:
@@ -464,6 +460,14 @@ class PlaywrightTestEngine:
                                             "reason": heal_reason
                                         })
                                         self._emit(log_callback, "warning", f"[SELF-HEALED] Button #{idx+1}: {heal_reason}")
+
+                                    if loc.count() > 0:
+                                        try:
+                                            loc.scroll_into_view_if_needed(timeout=1000)
+                                            loc.hover(timeout=1000)
+                                            page.wait_for_timeout(100)
+                                        except Exception:
+                                            pass
 
                                     results["passed"] += 1
                                     self._emit(log_callback, "info", f"PASSED: Button #{idx+1} '{btn.text[:25]}'")
