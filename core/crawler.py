@@ -69,7 +69,11 @@ class WebCrawler:
                     "--disable-gpu",
                     "--disable-software-rasterizer",
                     "--no-first-run",
-                    "--no-zygote"
+                    "--no-zygote",
+                    "--force-color-profile=srgb",
+                    "--enable-surface-synchronization",
+                    "--run-all-compositor-stages-before-draw",
+                    "--disable-blink-features=AutomationControlled"
                 ]
                 browser = p.chromium.launch(headless=True, args=chromium_args)
                 context = browser.new_context(user_agent=self.user_agent, ignore_https_errors=True)
