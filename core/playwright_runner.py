@@ -264,7 +264,19 @@ class PlaywrightTestEngine:
                     "record_video_dir": output_dir,
                     "ignore_https_errors": True,
                     "device_scale_factor": 1,
-                    "user_agent": preset.get("user_agent") or "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+                    "user_agent": preset.get("user_agent") or "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+                    "extra_http_headers": {
+                        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+                        "Accept-Language": "en-US,en;q=0.9",
+                        "Sec-Ch-Ua": '"Not/A)Brand";v="8", "Chromium";v="126", "Google Chrome";v="126"',
+                        "Sec-Ch-Ua-Mobile": "?0",
+                        "Sec-Ch-Ua-Platform": '"Windows"',
+                        "Sec-Fetch-Dest": "document",
+                        "Sec-Fetch-Mode": "navigate",
+                        "Sec-Fetch-Site": "none",
+                        "Sec-Fetch-User": "?1",
+                        "Upgrade-Insecure-Requests": "1"
+                    }
                 }
 
                 context = browser.new_context(**context_kwargs)
@@ -295,19 +307,44 @@ class PlaywrightTestEngine:
                             response = page.goto(page_data.url, wait_until="load", timeout=15000)
                         
                         load_time = round(time.time() - start_time, 2)
+                        status_code = response.status if response else 0
+
+                        # Rate Limit / Anti-Bot Backoff Retry
+                        if status_code in [429, 403, 503]:
+                            self._emit(log_callback, "warning", f"HTTP Status {status_code} detected (Rate Limited). Retrying navigation after 3s backoff...")
+                            page.wait_for_timeout(3000)
+                            try:
+                                response = page.goto(page_data.url, wait_until="load", timeout=15000)
+                                status_code = response.status if response else status_code
+                            except Exception:
+                                pass
+
                         page.wait_for_timeout(1000)
 
-                        # Emulate screen media and trigger scroll to hydrate lazy images and CSS layouts
+                        # Emulate screen media and hydrate DOM lazy images
                         try:
                             page.emulate_media(media="screen")
-                            page.evaluate("window.scrollTo(0, 400);")
+                            page.evaluate("""() => {
+                                window.scrollTo(0, 400);
+                                document.querySelectorAll('img[data-src], img[loading="lazy"]').forEach(img => {
+                                    if (img.dataset && img.dataset.src) img.src = img.dataset.src;
+                                    img.removeAttribute('loading');
+                                });
+                            }""")
                             page.wait_for_timeout(400)
                             page.evaluate("window.scrollTo(0, 0);")
                             page.wait_for_timeout(400)
+
+                            if status_code in [429, 403, 503]:
+                                page.evaluate(f"""() => {{
+                                    const b = document.createElement('div');
+                                    b.style.cssText = 'position:fixed;top:0;left:0;width:100%;background:#ef4444;color:#fff;font-size:15px;font-weight:bold;padding:10px;text-align:center;z-index:999999;font-family:sans-serif;box-shadow:0 4px 12px rgba(0,0,0,0.3);';
+                                    b.innerHTML = '⚠️ Target Web Server Returned HTTP Status {status_code} (Rate Limit / Anti-Bot Block). Retried automatically.';
+                                    document.body.appendChild(b);
+                                }}""")
                         except Exception:
                             pass
 
-                        status_code = response.status if response else 0
                         self._emit(log_callback, "info", f"Page loaded in {load_time}s | HTTP Status: {status_code}")
 
                         ss_filename = f"pw_baseline_{int(time.time())}.png"
