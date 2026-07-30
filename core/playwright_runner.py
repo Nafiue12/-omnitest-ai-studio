@@ -252,7 +252,9 @@ class PlaywrightTestEngine:
                 browser = p.chromium.launch(headless=self.headless)
                 context_kwargs = {
                     "viewport": preset["viewport"],
-                    "record_video_dir": output_dir
+                    "record_video_dir": output_dir,
+                    "ignore_https_errors": True,
+                    "device_scale_factor": 1
                 }
                 if preset.get("user_agent"):
                     context_kwargs["user_agent"] = preset["user_agent"]
@@ -278,9 +280,13 @@ class PlaywrightTestEngine:
                     self._emit(log_callback, "info", f"Navigating to URL: {page_data.url}")
                     with allure.step(f"[Playwright] Navigating to target page: {page_data.url}"):
                         start_time = time.time()
-                        response = page.goto(page_data.url, wait_until="domcontentloaded", timeout=15000)
+                        try:
+                            response = page.goto(page_data.url, wait_until="networkidle", timeout=15000)
+                        except Exception:
+                            response = page.goto(page_data.url, wait_until="load", timeout=15000)
+                        
                         load_time = round(time.time() - start_time, 2)
-                        page.wait_for_timeout(1000)
+                        page.wait_for_timeout(2000)
 
                         status_code = response.status if response else 0
                         self._emit(log_callback, "info", f"Page loaded in {load_time}s | HTTP Status: {status_code}")

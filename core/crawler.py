@@ -63,10 +63,13 @@ class WebCrawler:
             logger.info(f"Using headless browser fallback to render dynamic DOM for: {url}")
             with sync_playwright() as p:
                 browser = p.chromium.launch(headless=True)
-                context = browser.new_context(user_agent=self.user_agent)
+                context = browser.new_context(user_agent=self.user_agent, ignore_https_errors=True)
                 page = context.new_page()
-                page.goto(url, wait_until="domcontentloaded", timeout=15000)
-                page.wait_for_timeout(1500)
+                try:
+                    page.goto(url, wait_until="networkidle", timeout=15000)
+                except Exception:
+                    page.goto(url, wait_until="load", timeout=15000)
+                page.wait_for_timeout(2000)
                 content = page.content()
                 context.close()
                 browser.close()
