@@ -62,8 +62,18 @@ class WebCrawler:
             from playwright.sync_api import sync_playwright
             logger.info(f"Using headless browser fallback to render dynamic DOM for: {url}")
             with sync_playwright() as p:
-                browser = p.chromium.launch(headless=True)
+                chromium_args = [
+                    "--no-sandbox",
+                    "--disable-setuid-sandbox",
+                    "--disable-dev-shm-usage",
+                    "--disable-gpu",
+                    "--disable-software-rasterizer",
+                    "--no-first-run",
+                    "--no-zygote"
+                ]
+                browser = p.chromium.launch(headless=True, args=chromium_args)
                 context = browser.new_context(user_agent=self.user_agent, ignore_https_errors=True)
+                context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined});")
                 page = context.new_page()
                 try:
                     page.goto(url, wait_until="networkidle", timeout=15000)

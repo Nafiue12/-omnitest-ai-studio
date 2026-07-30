@@ -249,17 +249,26 @@ class PlaywrightTestEngine:
 
         try:
             with sync_playwright() as p:
-                browser = p.chromium.launch(headless=self.headless)
+                chromium_args = [
+                    "--no-sandbox",
+                    "--disable-setuid-sandbox",
+                    "--disable-dev-shm-usage",
+                    "--disable-gpu",
+                    "--disable-software-rasterizer",
+                    "--no-first-run",
+                    "--no-zygote"
+                ]
+                browser = p.chromium.launch(headless=self.headless, args=chromium_args)
                 context_kwargs = {
                     "viewport": preset["viewport"],
                     "record_video_dir": output_dir,
                     "ignore_https_errors": True,
-                    "device_scale_factor": 1
+                    "device_scale_factor": 1,
+                    "user_agent": preset.get("user_agent") or "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
                 }
-                if preset.get("user_agent"):
-                    context_kwargs["user_agent"] = preset["user_agent"]
 
                 context = browser.new_context(**context_kwargs)
+                context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined});")
                 page = context.new_page()
 
                 try:
