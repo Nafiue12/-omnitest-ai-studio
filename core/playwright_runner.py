@@ -295,18 +295,28 @@ class PlaywrightTestEngine:
                             response = page.goto(page_data.url, wait_until="load", timeout=15000)
                         
                         load_time = round(time.time() - start_time, 2)
-                        page.wait_for_timeout(2000)
+                        page.wait_for_timeout(1000)
+
+                        # Emulate screen media and trigger scroll to hydrate lazy images and CSS layouts
+                        try:
+                            page.emulate_media(media="screen")
+                            page.evaluate("window.scrollTo(0, 400);")
+                            page.wait_for_timeout(400)
+                            page.evaluate("window.scrollTo(0, 0);")
+                            page.wait_for_timeout(400)
+                        except Exception:
+                            pass
 
                         status_code = response.status if response else 0
                         self._emit(log_callback, "info", f"Page loaded in {load_time}s | HTTP Status: {status_code}")
 
                         ss_filename = f"pw_baseline_{int(time.time())}.png"
                         ss_path = os.path.join(output_dir, ss_filename)
-                        page.screenshot(path=ss_path, full_page=True)
+                        page.screenshot(path=ss_path, full_page=False)
                         results["screenshots"].append(ss_filename)
 
                         allure.attach(
-                            page.screenshot(full_page=True),
+                            page.screenshot(full_page=False),
                             name="Homepage Baseline Screenshot",
                             attachment_type=allure.attachment_type.PNG
                         )
