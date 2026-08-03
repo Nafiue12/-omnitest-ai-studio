@@ -196,6 +196,29 @@ class SeleniumTestEngine:
                 load_time = round(time.time() - start_time, 2)
                 self._emit(log_callback, "info", f"Selenium navigated to page in {load_time}s")
 
+                # Smooth scroll down and up to show in the video/screenshots
+                try:
+                    self.driver.execute_script("""
+                        const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+                        const scrollHeight = document.body.scrollHeight;
+                        const step = 80;
+                        (async () => {
+                            for (let i = 0; i < scrollHeight; i += step) {
+                                window.scrollTo(0, i);
+                                await delay(15);
+                            }
+                            await delay(300);
+                            for (let i = scrollHeight; i >= 0; i -= step * 1.5) {
+                                window.scrollTo(0, i);
+                                await delay(15);
+                            }
+                            window.scrollTo(0, 0);
+                        })();
+                    """)
+                    time.sleep(2.5)
+                except Exception:
+                    pass
+
                 screenshot_png = self.driver.get_screenshot_as_png()
                 ss_filename = f"sel_baseline_{int(time.time())}.png"
                 ss_path = os.path.join(output_dir, ss_filename)
@@ -256,6 +279,21 @@ class SeleniumTestEngine:
                                     "reason": heal_reason
                                 })
 
+                            if elem:
+                                try:
+                                    self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", elem)
+                                    time.sleep(0.3)
+                                    from selenium.webdriver.common.action_chains import ActionChains
+                                    ActionChains(self.driver).move_to_element(elem).perform()
+                                    time.sleep(0.3)
+                                    
+                                    # Capture screenshot for link validation evidence
+                                    ss_link_filename = f"sel_link_{idx+1}_{int(time.time())}.png"
+                                    self.driver.save_screenshot(os.path.join(output_dir, ss_link_filename))
+                                    results["screenshots"].append(ss_link_filename)
+                                except Exception:
+                                    pass
+
                             results["passed"] += 1
                             self._emit(log_callback, "info", f"PASSED: Link #{idx+1} '{link.text[:25]}'")
                         except Exception as ex:
@@ -280,6 +318,21 @@ class SeleniumTestEngine:
                                     "element": f"Button #{idx+1} ({btn.text[:25]})",
                                     "reason": heal_reason
                                 })
+
+                            if elem:
+                                try:
+                                    self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", elem)
+                                    time.sleep(0.3)
+                                    from selenium.webdriver.common.action_chains import ActionChains
+                                    ActionChains(self.driver).move_to_element(elem).perform()
+                                    time.sleep(0.3)
+                                    
+                                    # Capture screenshot for button validation evidence
+                                    ss_btn_filename = f"sel_btn_{idx+1}_{int(time.time())}.png"
+                                    self.driver.save_screenshot(os.path.join(output_dir, ss_btn_filename))
+                                    results["screenshots"].append(ss_btn_filename)
+                                except Exception:
+                                    pass
 
                             results["passed"] += 1
                             self._emit(log_callback, "info", f"PASSED: Button #{idx+1} '{btn.text[:25]}'")
@@ -313,11 +366,41 @@ class SeleniumTestEngine:
                         p_val = cred.get("password") or "secret123"
                         try:
                             if u_elem and u_elem.is_displayed():
+                                self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", u_elem)
                                 u_elem.clear()
-                                u_elem.send_keys(u_val)
+                                # Simulate slow typing in Selenium
+                                for char in u_val:
+                                    u_elem.send_keys(char)
+                                    time.sleep(0.05)
                             if p_elem and p_elem.is_displayed():
+                                self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", p_elem)
                                 p_elem.clear()
-                                p_elem.send_keys(p_val)
+                                for char in p_val:
+                                    p_elem.send_keys(char)
+                                    time.sleep(0.05)
+                            
+                            # Capture screenshot after filling login form
+                            try:
+                                ss_login_filled = f"sel_login_filled_{cred_idx+1}_{int(time.time())}.png"
+                                self.driver.save_screenshot(os.path.join(output_dir, ss_login_filled))
+                                results["screenshots"].append(ss_login_filled)
+                            except Exception:
+                                pass
+                            
+                            submit_btn, _, _ = self._heal_element(By.CSS_SELECTOR, "button[type='submit'], input[type='submit'], form button", tag_hint="button")
+                            if submit_btn and submit_btn.is_displayed():
+                                self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", submit_btn)
+                                submit_btn.click()
+                                time.sleep(1.5)
+                                
+                                # Capture screenshot after submission
+                                try:
+                                    ss_login_submit = f"sel_login_submitted_{cred_idx+1}_{int(time.time())}.png"
+                                    self.driver.save_screenshot(os.path.join(output_dir, ss_login_submit))
+                                    results["screenshots"].append(ss_login_submit)
+                                except Exception:
+                                    pass
+
                             results["passed"] += 1
                             self._emit(log_callback, "info", f"PASSED: Login Attempt #{cred_idx+1} for '{u_val}'")
                         except Exception as sel_ex:

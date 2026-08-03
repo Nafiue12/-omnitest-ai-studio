@@ -326,15 +326,33 @@ class PlaywrightTestEngine:
                         try:
                             page.emulate_media(media="screen")
                             page.evaluate("""() => {
-                                window.scrollTo(0, 400);
                                 document.querySelectorAll('img[data-src], img[loading="lazy"]').forEach(img => {
                                     if (img.dataset && img.dataset.src) img.src = img.dataset.src;
                                     img.removeAttribute('loading');
                                 });
                             }""")
-                            page.wait_for_timeout(400)
-                            page.evaluate("window.scrollTo(0, 0);")
-                            page.wait_for_timeout(400)
+                            page.wait_for_timeout(200)
+
+                            # Smooth scroll down and up to show in the video
+                            try:
+                                page.evaluate("""async () => {
+                                    const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+                                    const scrollHeight = document.body.scrollHeight;
+                                    const step = 80;
+                                    for (let i = 0; i < scrollHeight; i += step) {
+                                        window.scrollTo(0, i);
+                                        await delay(15);
+                                    }
+                                    await delay(300);
+                                    for (let i = scrollHeight; i >= 0; i -= step * 1.5) {
+                                        window.scrollTo(0, i);
+                                        await delay(15);
+                                    }
+                                    window.scrollTo(0, 0);
+                                }""")
+                                page.wait_for_timeout(2500)
+                            except Exception:
+                                pass
 
                             if status_code in [429, 403, 503]:
                                 target_domain = page_data.url
@@ -430,7 +448,12 @@ class PlaywrightTestEngine:
                                         try:
                                             loc.scroll_into_view_if_needed(timeout=1000)
                                             loc.hover(timeout=1000)
-                                            page.wait_for_timeout(100)
+                                            page.wait_for_timeout(300)
+                                            
+                                            # Capture screenshot for link validation evidence
+                                            ss_link_filename = f"pw_link_{idx+1}_{int(time.time())}.png"
+                                            page.screenshot(path=os.path.join(output_dir, ss_link_filename), full_page=False)
+                                            results["screenshots"].append(ss_link_filename)
                                         except Exception:
                                             pass
 
@@ -462,7 +485,12 @@ class PlaywrightTestEngine:
                                         try:
                                             loc.scroll_into_view_if_needed(timeout=1000)
                                             loc.hover(timeout=1000)
-                                            page.wait_for_timeout(100)
+                                            page.wait_for_timeout(300)
+                                            
+                                            # Capture screenshot for button validation evidence
+                                            ss_btn_filename = f"pw_btn_{idx+1}_{int(time.time())}.png"
+                                            page.screenshot(path=os.path.join(output_dir, ss_btn_filename), full_page=False)
+                                            results["screenshots"].append(ss_btn_filename)
                                         except Exception:
                                             pass
 
@@ -513,8 +541,8 @@ class PlaywrightTestEngine:
                                             except Exception:
                                                 user_loc.click(force=True)
                                             user_loc.fill("")
-                                            user_loc.press_sequentially(u_val, delay=20)
-                                            page.wait_for_timeout(100)
+                                            user_loc.press_sequentially(u_val, delay=100) # slower typing for video capture
+                                            page.wait_for_timeout(200)
 
                                         if pass_loc.count() > 0 and pass_loc.is_visible():
                                             pass_loc.scroll_into_view_if_needed()
@@ -523,8 +551,16 @@ class PlaywrightTestEngine:
                                             except Exception:
                                                 pass_loc.click(force=True)
                                             pass_loc.fill("")
-                                            pass_loc.press_sequentially(p_val, delay=20)
-                                            page.wait_for_timeout(100)
+                                            pass_loc.press_sequentially(p_val, delay=100) # slower typing
+                                            page.wait_for_timeout(200)
+
+                                        # Capture screenshot after filling login credentials
+                                        try:
+                                            ss_login_filled = f"pw_login_filled_{cred_idx+1}_{int(time.time())}.png"
+                                            page.screenshot(path=os.path.join(output_dir, ss_login_filled), full_page=False)
+                                            results["screenshots"].append(ss_login_filled)
+                                        except Exception:
+                                            pass
 
                                         if submit_loc.count() > 0 and submit_loc.is_visible():
                                             submit_loc.scroll_into_view_if_needed()
@@ -532,7 +568,15 @@ class PlaywrightTestEngine:
                                                 submit_loc.click(timeout=3000)
                                             except Exception:
                                                 submit_loc.click(force=True)
-                                            page.wait_for_timeout(1000)
+                                            page.wait_for_timeout(1500) # wait to see response
+
+                                            # Capture screenshot after submission
+                                            try:
+                                                ss_login_submit = f"pw_login_submitted_{cred_idx+1}_{int(time.time())}.png"
+                                                page.screenshot(path=os.path.join(output_dir, ss_login_submit), full_page=False)
+                                                results["screenshots"].append(ss_login_submit)
+                                            except Exception:
+                                                pass
 
                                         results["passed"] += 1
                                         self._emit(log_callback, "info", f"PASSED: Login Attempt #{cred_idx+1} for '{u_val}'")
