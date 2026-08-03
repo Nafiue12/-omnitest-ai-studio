@@ -254,12 +254,9 @@ class PlaywrightTestEngine:
                     "--disable-setuid-sandbox",
                     "--disable-dev-shm-usage",
                     "--disable-gpu",
-                    "--disable-software-rasterizer",
                     "--no-first-run",
                     "--no-zygote",
                     "--force-color-profile=srgb",
-                    "--enable-surface-synchronization",
-                    "--run-all-compositor-stages-before-draw",
                     "--disable-blink-features=AutomationControlled"
                 ]
                 browser = p.chromium.launch(headless=self.headless, args=chromium_args)
