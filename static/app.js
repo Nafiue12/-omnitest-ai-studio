@@ -227,6 +227,14 @@ document.addEventListener("DOMContentLoaded", () => {
         renderPerformanceSection(results);
         renderAccessibilitySection(results);
 
+        const statHealed = document.getElementById("statHealed");
+        const statPerfScore = document.getElementById("statPerfScore");
+        const statAccessScore = document.getElementById("statAccessScore");
+
+        if (statHealed) statHealed.textContent = results.healed_count || 0;
+        if (statPerfScore) statPerfScore.textContent = `${results.performance_score || 100}/100`;
+        if (statAccessScore) statAccessScore.textContent = `${results.accessibility_score || 100}/100`;
+
         appendTerminalLog("info", `🎉 OmniTest AI Execution Completed for ${data.ai_plan.target_url}`);
 
         loadAllureReportData();
