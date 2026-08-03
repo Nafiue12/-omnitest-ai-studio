@@ -219,6 +219,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // Render Results
         const results = data.results;
         if (results.discovered) {
+          currentCrawlData = results.discovered;
           renderDiscoveredData(results.discovered);
         }
         renderEngineResults(results, data.allure_results_dir);
@@ -227,6 +228,9 @@ document.addEventListener("DOMContentLoaded", () => {
         renderAccessibilitySection(results);
 
         appendTerminalLog("info", `🎉 OmniTest AI Execution Completed for ${data.ai_plan.target_url}`);
+
+        loadAllureReportData();
+        loadPlaywrightReportData();
 
         // Automatically switch to Allure Report tab
         const allureTab = document.getElementById("allureReportTabBtn");
@@ -273,6 +277,22 @@ document.addEventListener("DOMContentLoaded", () => {
   // Export Script Handler
   const exportScriptBtn = document.getElementById("exportScriptBtn");
   const targetUrlInput = document.getElementById("targetUrl");
+
+  const getAllureReportBtn = document.getElementById("getAllureReportBtn");
+  if (getAllureReportBtn) {
+    getAllureReportBtn.addEventListener("click", () => {
+      const tab = document.getElementById("allureReportTabBtn");
+      if (tab) tab.click();
+    });
+  }
+
+  const getPlaywrightReportBtn = document.getElementById("getPlaywrightReportBtn");
+  if (getPlaywrightReportBtn) {
+    getPlaywrightReportBtn.addEventListener("click", () => {
+      const tab = document.getElementById("playwrightReportTabBtn");
+      if (tab) tab.click();
+    });
+  }
 
   if (exportScriptBtn) {
     exportScriptBtn.addEventListener("click", async () => {
