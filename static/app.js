@@ -221,9 +221,10 @@ document.addEventListener("DOMContentLoaded", () => {
         if (results.discovered) {
           renderDiscoveredData(results.discovered);
         }
-        if (results.engine_results) {
-          renderEngineResults(results.engine_results, data.allure_results_dir);
-        }
+        renderEngineResults(results, data.allure_results_dir);
+        renderVisualDiffSection(results);
+        renderPerformanceSection(results);
+        renderAccessibilitySection(results);
 
         appendTerminalLog("info", `🎉 OmniTest AI Execution Completed for ${data.ai_plan.target_url}`);
 
@@ -321,10 +322,10 @@ document.addEventListener("DOMContentLoaded", () => {
       historyTableBody.innerHTML = data.history.map(run => {
         const dt = new Date(run.timestamp * 1000).toLocaleString();
         return `
-          <tr>
+          <tr class="history-row" data-run-id="${run.run_id}" style="cursor: pointer; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='rgba(255,255,255,0.05)'" onmouseout="this.style.backgroundColor='transparent'">
             <td><code>${run.run_id}</code></td>
             <td style="font-size: 0.85rem; color: var(--text-muted);">${dt}</td>
-            <td><a href="${run.target_url}" target="_blank" style="color: var(--accent-cyan); text-decoration: none;">${escapeHtml(run.target_url)}</a></td>
+            <td><a href="${run.target_url}" target="_blank" style="color: var(--accent-cyan); text-decoration: none;" onclick="event.stopPropagation();">${escapeHtml(run.target_url)}</a></td>
             <td><span class="badge badge-purple">${run.engine.toUpperCase()}</span></td>
             <td><span class="badge badge-green">${run.passed_count}</span></td>
             <td><span class="badge badge-red">${run.failed_count}</span></td>
@@ -334,10 +335,74 @@ document.addEventListener("DOMContentLoaded", () => {
           </tr>
         `;
       }).join("");
+
+      // Add click event listeners to rows to load details
+      document.querySelectorAll(".history-row").forEach(row => {
+        row.addEventListener("click", () => {
+          const runId = row.dataset.runId;
+          loadRunDetails(runId, true);
+        });
+      });
     } catch (err) {
       historyTableBody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: #f87171;">Error: ${err.message}</td></tr>`;
     }
   }
+
+  // Load details of a specific test run and update all audit tabs
+  async function loadRunDetails(runId, shouldSwitchTab = false) {
+    try {
+      appendTerminalLog("info", `Loading details for run ${runId}...`);
+      const res = await fetch(`/api/history/${runId}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Failed to load run details");
+
+      const run = data.run;
+      const summary = run.summary_data;
+      if (summary) {
+        currentCrawlData = summary.discovered || {
+          links: [], buttons: [], inputs: [],
+          total_links: summary.discovered?.total_links || 0,
+          total_buttons: summary.discovered?.total_buttons || 0,
+          total_inputs: summary.discovered?.total_inputs || 0,
+        };
+
+        renderDiscoveredData(currentCrawlData);
+        renderEngineResults(summary, "");
+        renderVisualDiffSection(summary);
+        renderPerformanceSection(summary);
+        renderAccessibilitySection(summary);
+
+        if (statHealed) statHealed.textContent = summary.healed_count || 0;
+        if (statPerfScore) statPerfScore.textContent = `${summary.performance_score || 100}/100`;
+        if (statAccessScore) statAccessScore.textContent = `${summary.accessibility_score || 100}/100`;
+
+        appendTerminalLog("info", `🎉 Successfully loaded results for run ${runId} (${summary.target_url})`);
+
+        if (shouldSwitchTab) {
+          const tabBtn = document.querySelector(`.tab-btn[data-tab="tabEngineResults"]`);
+          if (tabBtn) tabBtn.click();
+        }
+      }
+    } catch (err) {
+      appendTerminalLog("error", `❌ Failed to load run details: ${err.message}`);
+    }
+  }
+
+  // Initialize and automatically load the latest historical run details on page load
+  async function initApp() {
+    try {
+      const res = await fetch("/api/history");
+      const data = await res.json();
+      if (data.history && data.history.length > 0) {
+        const latestRunId = data.history[0].run_id;
+        loadRunDetails(latestRunId, false);
+      }
+      loadHistoryData();
+    } catch (err) {
+      console.error("Init App Error:", err);
+    }
+  }
+  initApp();
 
   // Inputs
   const deviceViewportSelect = document.getElementById("deviceViewportSelect");
